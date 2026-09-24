@@ -1,0 +1,19 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "stellasora-toolkit"
+version = "0.1.0"
+description = "Read-only StellaSora gacha and character emblem exporter"
+readme = "README.md"
+requires-python = ">=3.10"
+dependencies = ["Pillow>=10", "PySide6>=6.8"]
+license = { text = "Private research tool" }
+
+[project.scripts]
+stellasora-export = "stellasora_toolkit.cli:main"
+stellasora-toolkit = "stellasora_toolkit.gui:main"
+
+[tool.setuptools.packages.find]
+include = ["stellasora_toolkit*"]

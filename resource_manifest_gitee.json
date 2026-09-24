@@ -1,0 +1,648 @@
+{
+  "version": 1,
+  "base_url": "",
+  "items": [
+    {
+      "id": 110,
+      "kind": "traveler",
+      "path": "travelers/110.png",
+      "sha256": "413bb31aea3595410c1150060f92e9763036eb17f32cdf0f0a441bf7ada6eb80",
+      "name": "翡冷翠",
+      "rarity": 5
+    },
+    {
+      "id": 114,
+      "kind": "traveler",
+      "path": "travelers/114.png",
+      "sha256": "91a77fe7af806417551e78cde59db5b48bbd4c5330878bb0f6f576173fa22ebe",
+      "name": "猫眼",
+      "rarity": 5
+    },
+    {
+      "id": 115,
+      "kind": "traveler",
+      "path": "travelers/115.png",
+      "sha256": "18bc705573ad47fc351a115a5be31f24937ab5d48d3b74f6a721edf3950d909f",
+      "name": "火垂",
+      "rarity": 5
+    },
+    {
+      "id": 119,
+      "kind": "traveler",
+      "path": "travelers/119.png",
+      "sha256": "b3cca20dcbd76724c61c9256cba6eeb9cb489fe1841b0aaf5ce56c0b283d0da9",
+      "name": "花原",
+      "rarity": 5
+    },
+    {
+      "id": 125,
+      "kind": "traveler",
+      "path": "travelers/125.png",
+      "sha256": "cfe6250c98e0e60ccf38aaf764b32bc59b6f00b508a043f14a9977b7292ea304",
+      "name": "苍兰",
+      "rarity": 5
+    },
+    {
+      "id": 130,
+      "kind": "traveler",
+      "path": "travelers/130.png",
+      "sha256": "2ee2da99e19dfe750bcc3fb9d97880b85870070364b4de9e5e6ca9826ed515f5",
+      "name": "多娜",
+      "rarity": 5
+    },
+    {
+      "id": 132,
+      "kind": "traveler",
+      "path": "travelers/132.png",
+      "sha256": "535e5147653d1febb43b60c11aae1c241a73dcbf14d4857e9f9e77bf40da102f",
+      "name": "密涅瓦",
+      "rarity": 5
+    },
+    {
+      "id": 133,
+      "kind": "traveler",
+      "path": "travelers/133.png",
+      "sha256": "6892cbb0b76148c5d8b33b044d295f6d8f82b19a5b8fd353eb7069d3b77993f9",
+      "name": "夏花",
+      "rarity": 5
+    },
+    {
+      "id": 134,
+      "kind": "traveler",
+      "path": "travelers/134.png",
+      "sha256": "26eec9374e78a6cb97b23f09abbecefba74cd989da167ec6af6ed94e001ab082",
+      "name": "冬香",
+      "rarity": 5
+    },
+    {
+      "id": 135,
+      "kind": "traveler",
+      "path": "travelers/135.png",
+      "sha256": "e28578e9ac16bfc6e39f17ab760213ff757f116dad906c7dce0fa48f04bc61f3",
+      "name": "雾语",
+      "rarity": 5
+    },
+    {
+      "id": 137,
+      "kind": "traveler",
+      "path": "travelers/137.png",
+      "sha256": "31500612c8ce0b555fc9e597018f253d35a3e9910da442802f6d4bc4555dee5d",
+      "name": "埃莉诺",
+      "rarity": 5
+    },
+    {
+      "id": 140,
+      "kind": "traveler",
+      "path": "travelers/140.png",
+      "sha256": "6d8c61e689490f1570dd8e3b7ee73120357d1304c92a9c2d647b3d83598b9b2d",
+      "name": "斯帕克拉",
+      "rarity": 5
+    },
+    {
+      "id": 141,
+      "kind": "traveler",
+      "path": "travelers/141.png",
+      "sha256": "1cdbb7cb0b7dd2f4f10df4973e606fcfc93c38bb48d4fb9f2e0cd6b7488d59f9",
+      "name": "赤霞",
+      "rarity": 5
+    },
+    {
+      "id": 143,
+      "kind": "traveler",
+      "path": "travelers/143.png",
+      "sha256": "f67185d64ddd5adb073befb9b702bfb4d3d4af0b5345a7dc9c660059d0b1f57a",
+      "name": "风影",
+      "rarity": 5
+    },
+    {
+      "id": 144,
+      "kind": "traveler",
+      "path": "travelers/144.png",
+      "sha256": "1701cdb9fcd956d9da7e7da7bceb3003fa684d54ab2ad4e9c868b484d1f557fa",
+      "name": "千都世",
+      "rarity": 5
+    },
+    {
+      "id": 145,
+      "kind": "traveler",
+      "path": "travelers/145.png",
+      "sha256": "047fd6321ffbacc7b28b59fb27b4dd8e4ca9468e8ee3dc30753fe6f55303bc3f",
+      "name": "乙叶",
+      "rarity": 5
+    },
+    {
+      "id": 149,
+      "kind": "traveler",
+      "path": "travelers/149.png",
+      "sha256": "553b69be9211c7981e856c250ccb42d377d975d6b7e920afdf201bb0a4ae18dd",
+      "name": "格芮",
+      "rarity": 5
+    },
+    {
+      "id": 155,
+      "kind": "traveler",
+      "path": "travelers/155.png",
+      "sha256": "c3089ee164ec535e91d7f5c5938c8a39be06f6638417282054304740a1ffba41",
+      "name": "希娅",
+      "rarity": 5
+    },
+    {
+      "id": 156,
+      "kind": "traveler",
+      "path": "travelers/156.png",
+      "sha256": "b463d6146846a72770f4ba49363f7101020aa1d1457e6612df27a839994a2647",
+      "name": "小禾",
+      "rarity": 5
+    },
+    {
+      "id": 157,
+      "kind": "traveler",
+      "path": "travelers/157.png",
+      "sha256": "0d7c75cbdbf40170bbe384fdcf233c1ab9ae4c38901b6c09b5eb5e37ae02ed91",
+      "name": "花铃",
+      "rarity": 5
+    },
+    {
+      "id": 158,
+      "kind": "traveler",
+      "path": "travelers/158.png",
+      "sha256": "ebcfb2137b083098752155148c1737219f3d811baf7fcaaf91f05ba2fb988e18",
+      "name": "菈露（圣夜）",
+      "rarity": 5
+    },
+    {
+      "id": 159,
+      "kind": "traveler",
+      "path": "travelers/159.png",
+      "sha256": "5df441dac45e81615060741b1edd03e06cf4880940bc815d02e2fabdd9236671",
+      "name": "科洛妮丝（新春）",
+      "rarity": 5
+    },
+    {
+      "id": 160,
+      "kind": "traveler",
+      "path": "travelers/160.png",
+      "sha256": "52a39ef2573ce463a7c2ed704831f59255f16053a6542a3747dd60024922314e",
+      "name": "薇洛（盛夏）",
+      "rarity": 5
+    },
+    {
+      "id": 214001,
+      "kind": "disc",
+      "path": "discs/214001.png",
+      "sha256": "4a0d326d1d313205d241f17657115a17d5247c0208c9a7b718c989361a482012",
+      "name": "猫神降歌",
+      "rarity": 5
+    },
+    {
+      "id": 214002,
+      "kind": "disc",
+      "path": "discs/214002.png",
+      "sha256": "ae4dd0f662799927ae5e3cdddc4aa5293461d54f74a9426806e88eb133ecfd04",
+      "name": "空与花与诗",
+      "rarity": 5
+    },
+    {
+      "id": 214003,
+      "kind": "disc",
+      "path": "discs/214003.png",
+      "sha256": "56b34b58bf94f77bc72450b9084107107e5f75e346a0ea1b79f12366aaf47e7c",
+      "name": "你与我相似",
+      "rarity": 5
+    },
+    {
+      "id": 214004,
+      "kind": "disc",
+      "path": "discs/214004.png",
+      "sha256": "40149db721b6447504511e1329f40f3cb3f3989aba1f51d0d3ec7ab0ce2df539",
+      "name": "仙踪良梦",
+      "rarity": 5
+    },
+    {
+      "id": 214005,
+      "kind": "disc",
+      "path": "discs/214005.png",
+      "sha256": "4b4e133e6b6f09499a5f35127c4eeefba55c0b3a1feda4f5b93bda2ef525ee11",
+      "name": "晴之花",
+      "rarity": 5
+    },
+    {
+      "id": 214006,
+      "kind": "disc",
+      "path": "discs/214006.png",
+      "sha256": "ec8dacdfa53549af22b2adc8c25896bceae993db024e7f1940a64187c97114bb",
+      "name": "魔女的秋千",
+      "rarity": 5
+    },
+    {
+      "id": 214007,
+      "kind": "disc",
+      "path": "discs/214007.png",
+      "sha256": "1eae7b0ca72cb5bfa937e35f1a5286a0bb496603d93f8b7c039c083c111740fa",
+      "name": "午夜，堕天使",
+      "rarity": 5
+    },
+    {
+      "id": 214008,
+      "kind": "disc",
+      "path": "discs/214008.png",
+      "sha256": "722e0045f7c94d4ad4fcad4a49394c520fe13c9a2963c1f49215b53d39ee3363",
+      "name": "飞越青空",
+      "rarity": 5
+    },
+    {
+      "id": 214009,
+      "kind": "disc",
+      "path": "discs/214009.png",
+      "sha256": "8d822694c7859028e3f02336146df9b1bde79eb05208c0b6e126fde97550e9e7",
+      "name": "“空白”的序章",
+      "rarity": 5
+    },
+    {
+      "id": 214010,
+      "kind": "disc",
+      "path": "discs/214010.png",
+      "sha256": "9fb1c1d00525940967c62f037252a25402699951249b1ad3c5d5eb8f52fd62a8",
+      "name": "沐光祷告",
+      "rarity": 5
+    },
+    {
+      "id": 214011,
+      "kind": "disc",
+      "path": "discs/214011.png",
+      "sha256": "3684cb8a91891568b669dc37aa8f416d46776f0964fd1587e66631bdceea5931",
+      "name": "夏日午后的雨",
+      "rarity": 5
+    },
+    {
+      "id": 214012,
+      "kind": "disc",
+      "path": "discs/214012.png",
+      "sha256": "ec948fd116d6cb8978a8e08994ec3f88ad6fb66bfe7b7382f2a6ebe93e760a86",
+      "name": "狼贪虎视",
+      "rarity": 5
+    },
+    {
+      "id": 214013,
+      "kind": "disc",
+      "path": "discs/214013.png",
+      "sha256": "e3592b0677f47bb37155ea555fe7b3022967dd98e2e5b1c9dd5ed3b4e02c4eb4",
+      "name": "远航蓝图",
+      "rarity": 5
+    },
+    {
+      "id": 214014,
+      "kind": "disc",
+      "path": "discs/214014.png",
+      "sha256": "e0d290f7556730a4ac9cead942e50fbeb19df757b3de9238efcdc64288b5666d",
+      "name": "甜言蜜果",
+      "rarity": 5
+    },
+    {
+      "id": 214015,
+      "kind": "disc",
+      "path": "discs/214015.png",
+      "sha256": "85690bc10a40f611838de6f9e29a5bded2312c5126a86ad9bd5900ee6b23cdc3",
+      "name": "鹿鸣",
+      "rarity": 5
+    },
+    {
+      "id": 214016,
+      "kind": "disc",
+      "path": "discs/214016.png",
+      "sha256": "9c47104636eac231321804338df25b6ea4dfa4e29344979320b180a099e70a3c",
+      "name": "春日纪事",
+      "rarity": 5
+    },
+    {
+      "id": 214017,
+      "kind": "disc",
+      "path": "discs/214017.png",
+      "sha256": "18199e2d8351646a0e04a5663de444836bbac91811913772dcbe8a1f074addc8",
+      "name": "花火",
+      "rarity": 5
+    },
+    {
+      "id": 214018,
+      "kind": "disc",
+      "path": "discs/214018.png",
+      "sha256": "c84309368fd01371a81a4672155291b81b1a040ea7fbe7c34b1f1ec728874f27",
+      "name": "冰柠与红茶",
+      "rarity": 5
+    },
+    {
+      "id": 214019,
+      "kind": "disc",
+      "path": "discs/214019.png",
+      "sha256": "51a7599cfad96bf85ca0693f60752d115c5a1561dc69a1e625ddd9a1b1bf8b69",
+      "name": "一发破的",
+      "rarity": 5
+    },
+    {
+      "id": 214020,
+      "kind": "disc",
+      "path": "discs/214020.png",
+      "sha256": "2ba9e45c74ddf28f16f34b6289a92b4456dd2e08ee932a9d6ebc7e5065959f0d",
+      "name": "闪光之时",
+      "rarity": 5
+    },
+    {
+      "id": 214021,
+      "kind": "disc",
+      "path": "discs/214021.png",
+      "sha256": "308e6d4276cfc8bc411a423f557cd98ef51edc89165f8b7beb50a3758167ed28",
+      "name": "因缘而聚",
+      "rarity": 5
+    },
+    {
+      "id": 214022,
+      "kind": "disc",
+      "path": "discs/214022.png",
+      "sha256": "182e9a590ea22cc3d4a924aee152e06cbb10d9aca3174cfa0b923d478d6adeed",
+      "name": "午夜喵铃",
+      "rarity": 5
+    },
+    {
+      "id": 214023,
+      "kind": "disc",
+      "path": "discs/214023.png",
+      "sha256": "e4637cccbc92486eb1bb50e7c042f5aada37677c2eff86cc8fb926d4ae42795e",
+      "name": "涂鸦彩虹",
+      "rarity": 5
+    },
+    {
+      "id": 214024,
+      "kind": "disc",
+      "path": "discs/214024.png",
+      "sha256": "3cfbbc83e675e92888d810ebb44f8ef6d50d191191e99994eae88ee88b9d9400",
+      "name": "一二三，跳！",
+      "rarity": 5
+    },
+    {
+      "id": 214026,
+      "kind": "disc",
+      "path": "discs/214026.png",
+      "sha256": "5db6bbfb3bba01c41b7844660f6b88a1e826849db4ccbd3ed1eed867ff0b0ae8",
+      "name": "潋滟故池水",
+      "rarity": 5
+    },
+    {
+      "id": 214027,
+      "kind": "disc",
+      "path": "discs/214027.png",
+      "sha256": "6e6796edf31b0e875d305979ffee5e4db19a6238436594f750bffc5cc74a94f8",
+      "name": "龙飞凤舞",
+      "rarity": 5
+    },
+    {
+      "id": 214028,
+      "kind": "disc",
+      "path": "discs/214028.png",
+      "sha256": "d7d19c3d9714e7c3c3b7a936864e4edaa6b95601c72cca860077ece776738e82",
+      "name": "白日花园",
+      "rarity": 5
+    },
+    {
+      "id": 214029,
+      "kind": "disc",
+      "path": "discs/214029.png",
+      "sha256": "292d7c255c5c171a7284da57d6526e0f5574c6e2c2e83f4be0b763fb26719f6d",
+      "name": "猫之珍藏",
+      "rarity": 5
+    },
+    {
+      "id": 214030,
+      "kind": "disc",
+      "path": "discs/214030.png",
+      "sha256": "9a04943e08d0c0289e998e32d2ee9cb79485cacd21dbccc36870b46ef84fdad7",
+      "name": "午后间隙",
+      "rarity": 5
+    },
+    {
+      "id": 214031,
+      "kind": "disc",
+      "path": "discs/214031.png",
+      "sha256": "43b476a744fa027d2f35793a3f15acd4572d24b0b3a0661df8b99529a118590b",
+      "name": "刀与斧的铮鸣",
+      "rarity": 5
+    },
+    {
+      "id": 214032,
+      "kind": "disc",
+      "path": "discs/214032.png",
+      "sha256": "d13432678087818e67e8d9410fc3e2332ca7417d1a16352c6daefd1f61f006df",
+      "name": "真相☆梦工厂",
+      "rarity": 5
+    },
+    {
+      "id": 214033,
+      "kind": "disc",
+      "path": "discs/214033.png",
+      "sha256": "ea1548e9fcd2362161dffaa23bf8731638b80f0e2ff9bf91bc130d5a28839958",
+      "name": "与骨共舞",
+      "rarity": 5
+    },
+    {
+      "id": 214036,
+      "kind": "disc",
+      "path": "discs/214036.png",
+      "sha256": "033a7729e5bcafe1083faeabe86d0d88032d5bc237e21f36dbcaaae1914f10f0",
+      "name": "迷途的朝圣者",
+      "rarity": 5
+    },
+    {
+      "id": 214037,
+      "kind": "disc",
+      "path": "discs/214037.png",
+      "sha256": "e2da76caa095d839fa71238f4847911867cc84cec07387e8c08951dc77a14f8c",
+      "name": "抓住传说",
+      "rarity": 5
+    },
+    {
+      "id": 214038,
+      "kind": "disc",
+      "path": "discs/214038.png",
+      "sha256": "b71a7680117d35d748afbf076a14fa73628fc54b0f99a4839cdb093218a55224",
+      "name": "波光漫游",
+      "rarity": 5
+    },
+    {
+      "id": 214039,
+      "kind": "disc",
+      "path": "discs/214039.png",
+      "sha256": "af97f14510888719ef6e1e0f00d999e3177b4ad595a4557253c2fddc70d5546f",
+      "name": "夏日栖息地",
+      "rarity": 5
+    },
+    {
+      "id": 214040,
+      "kind": "disc",
+      "path": "discs/214040.png",
+      "sha256": "cd83969f52adc448d65d15110473a87d7e1d15a26c3810544acb43d33d289b44",
+      "name": "勇气之拳",
+      "rarity": 5
+    },
+    {
+      "id": 214041,
+      "kind": "disc",
+      "path": "discs/214041.png",
+      "sha256": "491025b6a031909e425bd169bb155a8df39e94a5813d83588854d4d1e2922277",
+      "name": "启程的礼物",
+      "rarity": 5
+    },
+    {
+      "id": 214042,
+      "kind": "disc",
+      "path": "discs/214042.png",
+      "sha256": "ef3b0c3705017210754d5a623f5ddc40f970d9a1c95daa7866af97346370b66c",
+      "name": "酒暖灯明时",
+      "rarity": 5
+    },
+    {
+      "id": 214043,
+      "kind": "disc",
+      "path": "discs/214043.png",
+      "sha256": "0645cdd66ebc164e610821f736a767654179ac696e149b8fd6282c80804d0e3f",
+      "name": "革新的萌芽",
+      "rarity": 5
+    },
+    {
+      "id": 214044,
+      "kind": "disc",
+      "path": "discs/214044.png",
+      "sha256": "c3ee6aa092932579fbfd0c6a1fa6cffe5563a9e601622bcb4d5128930eb93909",
+      "name": "罗帷春染岁朝新",
+      "rarity": 5
+    },
+    {
+      "id": 214045,
+      "kind": "disc",
+      "path": "discs/214045.png",
+      "sha256": "c73b2b86f8cb23b5fd342bceee7b413dba689881eabb007168b94a18a2ed496a",
+      "name": "繁花幻梦",
+      "rarity": 5
+    },
+    {
+      "id": 214046,
+      "kind": "disc",
+      "path": "discs/214046.png",
+      "sha256": "87776863a8f39fa816887320675c36b618548b0a17df89f27ce043a8e7daea72",
+      "name": "冬夜后的黎明",
+      "rarity": 5
+    },
+    {
+      "id": 214047,
+      "kind": "disc",
+      "path": "discs/214047.png",
+      "sha256": "b3c71e41891688e1f66878e9ddf678d7511ad6c70b1c0857109c7cff0eac2bfc",
+      "name": "信笺乘风而去",
+      "rarity": 5
+    },
+    {
+      "id": 214048,
+      "kind": "disc",
+      "path": "discs/214048.png",
+      "sha256": "725d4dab41b4ab80ba40bb26ac5078a786f766b8b7967d89d9b4ceb1086b72f7",
+      "name": "雪夜惊喜",
+      "rarity": 5
+    },
+    {
+      "id": 214049,
+      "kind": "disc",
+      "path": "discs/214049.png",
+      "sha256": "e8d2535302b5e3f9604311d92979870467f1bbdd53e489bf9b91dd7df8f1bb63",
+      "name": "星光的印记",
+      "rarity": 5
+    },
+    {
+      "id": 214050,
+      "kind": "disc",
+      "path": "discs/214050.png",
+      "sha256": "f062ceeb962f003edb652807cb8138c2c30c6d091f5542de2d1e3b7efc5227a1",
+      "name": "夜宴谜影",
+      "rarity": 5
+    },
+    {
+      "id": 214051,
+      "kind": "disc",
+      "path": "discs/214051.png",
+      "sha256": "b7a671d8ac4ff2e3619304131f2767ac8aa4887076cd2ef18f8412382bda6ad0",
+      "name": "星之所向",
+      "rarity": 5
+    },
+    {
+      "id": 214052,
+      "kind": "disc",
+      "path": "discs/214052.png",
+      "sha256": "81e70fe93683b1f3b76c7ee7f695c78b5552508b77ed19cb1701d44ae5674cde",
+      "name": "奇迹一触",
+      "rarity": 5
+    },
+    {
+      "id": 214053,
+      "kind": "disc",
+      "path": "discs/214053.png",
+      "sha256": "f41f725db003c5c159345fa45a8d1b5566664c2a4d58ccee57fa26f6cffbf549",
+      "name": "欢聚时刻",
+      "rarity": 5
+    },
+    {
+      "id": 214054,
+      "kind": "disc",
+      "path": "discs/214054.png",
+      "sha256": "cee1a66801645074d86194f282f2cc61f6a9e566e1299961f6c7cbbf1dd189d3",
+      "name": "微小的乐园",
+      "rarity": 5
+    },
+    {
+      "id": 214055,
+      "kind": "disc",
+      "path": "discs/214055.png",
+      "sha256": "8a60d9c849d0a39d19a951b747234d02c7e396597acbcd1734dd42fa5114eed7",
+      "name": "浮光掠影",
+      "rarity": 5
+    },
+    {
+      "id": 214056,
+      "kind": "disc",
+      "path": "discs/214056.png",
+      "sha256": "e351c579af86c5dbd45fc9c71b3bd14ba144cb27464d3b0d2791da99dd6358b7",
+      "name": "斑驳夏影",
+      "rarity": 5
+    },
+    {
+      "id": 214057,
+      "kind": "disc",
+      "path": "discs/214057.png",
+      "sha256": "53359dbcd33aa43a135e82133ab36e2c90f59a3993d438cd07dbc5efc3bbcf88",
+      "name": "伴我航行",
+      "rarity": 5
+    },
+    {
+      "id": 214058,
+      "kind": "disc",
+      "path": "discs/214058.png",
+      "sha256": "82ef87207a78a7ed994c9fafa002586e57ef1a5943ef1fdb99dd5104fb9e3c5a",
+      "name": "夏日进行曲",
+      "rarity": 5
+    },
+    {
+      "id": 214059,
+      "kind": "disc",
+      "path": "discs/214059.png",
+      "sha256": "a1519fe4665b6313a1935f1a7fe05720da78a84ed67690b669b6ac24caba2028",
+      "name": "飞吧，笼中鸟",
+      "rarity": 5
+    },
+    {
+      "id": 214060,
+      "kind": "disc",
+      "path": "discs/214060.png",
+      "sha256": "db6e36f3e9ee555b15417817627ca74ea583657713cb240dfbd49a8bfb895ccf",
+      "name": "荣誉时刻",
+      "rarity": 5
+    }
+  ],
+  "archive_url": "",
+  "archive_sha256": "640989d439c64e840c38d50ae1c170454c5514b5a70e9d703936010dbf458fe2"
+}

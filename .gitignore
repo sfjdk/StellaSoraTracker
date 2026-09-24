@@ -1,0 +1,14 @@
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+exports/
+build/
+dist/
+release/
+*.spec
+!StellaSoraUpdater.spec
+!StellaSoraGachaTool.spec
+*.exe
+.gitee-token
+.testtmp/
