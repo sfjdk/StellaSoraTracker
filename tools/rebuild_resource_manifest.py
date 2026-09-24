@@ -6,7 +6,7 @@
 1. 扫描 assets/travelers/ 与 assets/discs/ 的全部 PNG，重算 sha256；
 2. 用 assets/stellabase_5star/*.json（StellaBase 抓取数据）补齐清单里缺失条目的
    name / rarity —— 即本次新增的 5 星角色和秘纹；
-3. 更新三份清单（resource_manifest.json / _gitee.json / _github.json），
+3. 更新两份清单（resource_manifest.json / _github.json），
    resources.zip 与 archive_sha256 一并重建。
 
 用法::
@@ -28,7 +28,6 @@ ASSETS = ROOT / "assets"
 FETCH_DIR = Path(__file__).resolve().parent / "stellabase_cache"  # 抓取元数据缓存(由 fetch_stellabase.py 重新生成)
 MANIFESTS = [
     ROOT / "resource_manifest.json",
-    ROOT / "resource_manifest_gitee.json",
     ROOT / "resource_manifest_github.json",
 ]
 ZIP_PATH = ROOT / "resources.zip"

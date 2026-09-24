@@ -13,16 +13,14 @@ from urllib.parse import urljoin, urlparse
 from urllib.request import Request, urlopen
 
 from . import server_config
-from .app_updater import UPDATE_MANIFEST_ENV, UPDATE_SOURCE
+from .app_updater import UPDATE_MANIFEST_ENV_VAR
 
 
-# 资源清单与更新清单共用同一环境变量(STELLASORA_UPDATE_MANIFEST_GITHUB / _GITEE),
+# 资源清单与更新清单共用同一环境变量(STELLASORA_UPDATE_MANIFEST_GITHUB),
 # 代码内不写死任何仓库地址; 未配置时更新流程视为"未配置"。
 STELLABASE_API = "https://stella.ennead.cc/api/stella"
 STELLABASE_ASSET_API = "https://stella.ennead.cc/api/asset"
-DEFAULT_MANIFEST_URL = os.environ.get(
-    UPDATE_MANIFEST_ENV.get(UPDATE_SOURCE, UPDATE_MANIFEST_ENV["github"]), ""
-).strip()
+DEFAULT_MANIFEST_URL = os.environ.get(UPDATE_MANIFEST_ENV_VAR, "").strip()
 ProgressCallback = Callable[[str], None]
 
 

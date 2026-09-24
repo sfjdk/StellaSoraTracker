@@ -3,10 +3,10 @@
 #define MyAppExeName "StellaSoraGachaTool.exe"
 
 #ifndef MySourceDir
-  #define MySourceDir "..\release\gitee\StellaSoraGachaTool"
+  #define MySourceDir "..\release\github\StellaSoraGachaTool"
 #endif
 #ifndef MyOutputDir
-  #define MyOutputDir "..\release\gitee"
+  #define MyOutputDir "..\release\github"
 #endif
 #ifndef MyOutputBaseFilename
   #define MyOutputBaseFilename "StellaSoraGachaTool-Setup-1.2.17"

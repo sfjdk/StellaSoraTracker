@@ -10,5 +10,4 @@ release/
 !StellaSoraUpdater.spec
 !StellaSoraGachaTool.spec
 *.exe
-.gitee-token
 .testtmp/

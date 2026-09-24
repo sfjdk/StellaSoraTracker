@@ -14,28 +14,17 @@ from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
 
-# 更新清单地址不写死在代码里, 由环境变量提供:
-#   STELLASORA_UPDATE_MANIFEST_GITHUB / ..._GITEE : 清单完整 URL
-#   STELLASORA_UPDATE_SOURCE : 主源(github / gitee), 默认 github
+# 更新渠道只有 GitHub 一个。
+# 清单地址不写死在代码里, 由环境变量提供:
+#   STELLASORA_UPDATE_MANIFEST_GITHUB : 更新清单完整 URL
 # 未配置时更新检查视为"未配置", 直接提示而不会去请求任何地址。
-UPDATE_SOURCE = os.environ.get("STELLASORA_UPDATE_SOURCE", "github").lower()
-UPDATE_MANIFEST_ENV = {
-    "github": "STELLASORA_UPDATE_MANIFEST_GITHUB",
-    "gitee": "STELLASORA_UPDATE_MANIFEST_GITEE",
-}
-# 主源优先(默认 github), 失败自动回退另一源
-UPDATE_ORDER = ("github", "gitee")
+UPDATE_MANIFEST_ENV_VAR = "STELLASORA_UPDATE_MANIFEST_GITHUB"
 
 
 def update_urls() -> list[str]:
-    """返回按优先级排好的清单地址; 未配置的源不返回, 全未配置时返回空列表。"""
-    primary = UPDATE_SOURCE if UPDATE_SOURCE in UPDATE_MANIFEST_ENV else UPDATE_ORDER[0]
-    ordered = [primary] + [name for name in UPDATE_ORDER if name != primary]
-    return [
-        url
-        for url in (os.environ.get(UPDATE_MANIFEST_ENV[name], "").strip() for name in ordered)
-        if url
-    ]
+    """返回更新清单地址; 未配置时返回空列表。"""
+    url = os.environ.get(UPDATE_MANIFEST_ENV_VAR, "").strip()
+    return [url] if url else []
 
 
 UPDATE_MANIFEST_URL = next(iter(update_urls()), "")

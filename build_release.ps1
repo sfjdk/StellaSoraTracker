@@ -1,7 +1,4 @@
-param(
-    [ValidateSet("gitee", "github", "all")]
-    [string]$Source = "all"
-)
+param()
 
 $ErrorActionPreference = "Stop"
 $root = Split-Path -Parent $MyInvocation.MyCommand.Path
@@ -25,28 +22,27 @@ if ($LASTEXITCODE -ne 0) {
 & $python -m PyInstaller --noconfirm --clean StellaSoraUpdater.spec
 if ($LASTEXITCODE -ne 0) { throw "Updater build failed." }
 
-$targets = if ($Source -eq "all") { @("gitee", "github") } else { @($Source) }
-foreach ($target in $targets) {
-    $launcher = "launcher_$target.py"
-    $output = Join-Path $root "release\$target"
-    $work = Join-Path $root "build\$target"
-    $spec = Join-Path $root "build\StellaSoraGachaTool-$target.spec"
-    $assets = Join-Path $root "assets"
-    New-Item -ItemType Directory -Path $output -Force | Out-Null
+# 发行渠道只有 GitHub
+$target = "github"
+$launcher = "launcher_$target.py"
+$output = Join-Path $root "release\$target"
+$work = Join-Path $root "build\$target"
+$spec = Join-Path $root "build\StellaSoraGachaTool-$target.spec"
+$assets = Join-Path $root "assets"
+New-Item -ItemType Directory -Path $output -Force | Out-Null
 
-    & $python -m PyInstaller `
-        --noconfirm `
-        --clean `
-        --windowed `
-        --onedir `
-        --name StellaSoraGachaTool `
-        --icon (Join-Path $assets "app_icon.ico") `
-        --add-data "$assets;assets" `
-        --distpath $output `
-        --workpath $work `
-        --specpath (Split-Path -Parent $spec) `
-        $launcher
-    if ($LASTEXITCODE -ne 0) { throw "Application build failed for $target." }
+& $python -m PyInstaller `
+    --noconfirm `
+    --clean `
+    --windowed `
+    --onedir `
+    --name StellaSoraGachaTool `
+    --icon (Join-Path $assets "app_icon.ico") `
+    --add-data "$assets;assets" `
+    --distpath $output `
+    --workpath $work `
+    --specpath (Split-Path -Parent $spec) `
+    $launcher
+if ($LASTEXITCODE -ne 0) { throw "Application build failed for $target." }
 
-    Copy-Item -LiteralPath "dist\StellaSoraUpdater.exe" -Destination "$output\StellaSoraGachaTool\StellaSoraUpdater.exe" -Force
-}
+Copy-Item -LiteralPath "dist\StellaSoraUpdater.exe" -Destination "$output\StellaSoraGachaTool\StellaSoraUpdater.exe" -Force

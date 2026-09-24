@@ -583,7 +583,7 @@ class StellaSoraWindow(QMainWindow):
             QMessageBox.information(
                 self, "检查更新",
                 "未配置更新源。\n\n请设置环境变量 STELLASORA_UPDATE_MANIFEST_GITHUB"
-                "\n(或 STELLASORA_UPDATE_MANIFEST_GITEE) 指向更新清单地址后重试。",
+                " 指向更新清单地址后重试。",
             )
             return
         self._status.setText("正在检查软件更新")
