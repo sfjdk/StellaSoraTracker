@@ -36,6 +36,10 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
+# 非抽取单位(BOSS/剧情)的排除口径与运行时一致, 直接复用 catalog, 避免两处各写一份。
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
+from stellasora_toolkit.catalog import is_gacha_item  # noqa: E402
+
 # ---------------------------------------------------------------------------
 # 配置区
 # ---------------------------------------------------------------------------
@@ -116,8 +120,15 @@ def resolve_asset(path: str) -> str:
 # ---------------------------------------------------------------------------
 
 def filter_five_star(items: list[dict], star_field: str) -> list[dict]:
-    """按 star_field（discs 用 star，角色用 grade）过滤出 TARGET_STAR。"""
-    return [it for it in items if (it.get(star_field) or 0) >= TARGET_STAR]
+    """按 star_field（discs 用 star，角色用 grade）过滤出 TARGET_STAR。
+
+    角色接口把 BOSS/剧情单位（魔侍巨像 997/998/999，grade 也是 5）一并返回，
+    它们抽不到: 既不该进快照，也不该被下载头像。过滤口径与运行时 catalog 一致。
+    """
+    return [
+        it for it in items
+        if (it.get(star_field) or 0) >= TARGET_STAR and is_gacha_item(int(it["id"]))
+    ]
 
 
 def save_json(data: object, name: str) -> None:

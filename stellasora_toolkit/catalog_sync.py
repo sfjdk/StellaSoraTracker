@@ -4,8 +4,10 @@
 
 背景: catalog.py 的静态表 (TRAVELER_NAMES / FIVE_STAR_TRAVELERS / FIVE_STAR_DISCS)
 跟随软件版本内置更新, 但游戏更新新池子时, 新五星的 ID/名称在清单发布前是未知的。
-例如 137 埃莉诺(2026-09-08 最新池)不在静态表里, is_five_star_item 会把它的
-五星结果当成普通记录——register_gacha_resource() 接口存在, 但从未被调用。
+例如 139 艾蕾(限时池 10139)上线时静态表里没有它, is_five_star_item 会把它的
+五星结果当成普通记录 —— register_gacha_resource() 就是为这种在线补登记准备的。
+(静态表本身也要跟得上: 漏登记的 id 在离线时没有任何补救手段, 见
+tests/test_catalog_alignment.py 的离线对齐校验。)
 
 通路一(启动后台): sync_catalog() —— 静默增强, 任何失败都退回"内置清单"的旧行为;
 通路二(手动同步): sync_with_report() —— 返回结构化报告, 由界面弹窗展示:
@@ -27,7 +29,8 @@ from urllib.request import Request, urlopen
 
 from . import server_config
 from .catalog import (
-    DISC_NAMES, TRAVELER_NAMES, gacha_item_name, is_five_star_item, register_gacha_resource,
+    DISC_NAMES, TRAVELER_NAMES, gacha_item_name, is_five_star_item, is_gacha_item,
+    register_gacha_resource,
 )
 from .resource_manager import STELLABASE_API, STELLABASE_ASSET_API
 
@@ -75,6 +78,9 @@ def _fetch_five_star_catalog(progress: ProgressCallback | None = None) -> list[d
             portrait = str(row.get("portrait") or "")
             # icon(圆形小图标)优先, 缺失时回退 portrait(半身立绘), 两者都没有才丢弃
             if rarity < 5:
+                continue
+            # BOSS/剧情单位(魔侍巨像等)在角色接口里也是 grade=5, 但抽不到, 不能注册
+            if not is_gacha_item(item_id):
                 continue
             if not (icon.startswith("/stella/assets/") or portrait.startswith("/stella/assets/")):
                 continue

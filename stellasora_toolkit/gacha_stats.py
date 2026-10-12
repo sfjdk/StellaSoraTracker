@@ -13,6 +13,27 @@ CATEGORY_TRAVELER_STANDARD = "traveler_standard"
 CATEGORY_DISC_STANDARD = "disc_standard"
 CATEGORY_UNKNOWN = "unknown"
 
+# 游戏 Lua 里 _mapGachaHistory 的外层 key。注意它和界面的展示顺序
+# (GACHA_CATEGORY_ORDER: 旅人限时/秘纹限时/旅人常驻/秘纹常驻)不是一回事 ——
+# 这里用的才是归档 JSON 里 categories 的真实键,经实际归档数据核对:
+#   1 → Gid 10xxx 旅人限时 / 2 → Gid 1 旅人常驻
+#   3 → Gid 20xxx 秘纹限时 / 4 → Gid 2 秘纹常驻
+HISTORY_CATEGORY_KEYS = {
+    CATEGORY_TRAVELER_LIMITED: 1,
+    CATEGORY_TRAVELER_STANDARD: 2,
+    CATEGORY_DISC_LIMITED: 3,
+    CATEGORY_DISC_STANDARD: 4,
+}
+
+
+def history_category_key(groups: list[dict[str, Any]]) -> int | None:
+    """这条记录在官方归档里的外层分类 key(1..4);判不出来返回 None。
+
+    判据是 Gid —— 导入的数据可能完全没有分类信息(CSV、只存扁平 groups 的
+    老导出),唯一可靠的还原方式就是从 Gid 反推。
+    """
+    return HISTORY_CATEGORY_KEYS.get(classify_history_category(groups))
+
 
 def classify_history_category(groups: list[dict[str, Any]]) -> str:
     gids: set[int] = set()

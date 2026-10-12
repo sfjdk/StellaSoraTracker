@@ -8,7 +8,13 @@ from typing import Callable, Iterable
 
 from . import server_config
 from .discovery import LuaTableDiscovery
-from .exporter import export_all, sanitize_gacha_categories
+from .exporter import (
+    export_all,
+    extract_uid,
+    normalize_category_keys,
+    parse_import_text,
+    sanitize_gacha_categories,
+)
 from .lua53 import Lua53Reader
 from .process import RemoteProcess, find_process_id, running_processes
 
@@ -104,11 +110,15 @@ def extract_snapshot(
             set(profile.gacha_companions),
         )
     report("招募数据读取完成，正在生成本地 JSON 和 CSV")
+    target = output_dir.resolve()
     current_categories = sanitize_gacha_categories(raw_gacha)
-    categories = merge_gacha_categories(_load_archive(output_dir.resolve()), current_categories)
+    payload = read_archive_payload(target)
+    # 归档里的 uid(从网页版/分享文件导入时记下的)要一直带着, 否则刷新一次就没了
+    uid = extract_uid(payload)
+    categories = merge_gacha_categories(_categories_from_payload(payload), current_categories)
     gacha = [group for groups in categories.values() for group in groups]
-    files = tuple(export_all(output_dir.resolve(), gacha, None, categories))
-    _write_archive(output_dir.resolve(), categories)
+    files = tuple(export_all(target, gacha, None, categories, uid=uid))
+    _write_archive(target, categories, uid=uid)
     return Snapshot(gacha, [], files, categories)
 
 
@@ -138,34 +148,115 @@ def merge_gacha_categories(
     return {category: groups for category, groups in merged.items() if groups}
 
 
-def _load_archive(output_dir: Path) -> dict[int, list[dict]]:
+def read_archive_payload(output_dir: Path) -> dict:
+    """读归档的完整 payload(version / uid / updatedAt / categories)。
+
+    归档不存在或读坏时退回最近一次带时间戳的导出 —— 老用户是从
+    stellasora_gacha_*.json 升上来的, 不该因为少一个归档文件名就丢数据。
+    读不到任何东西返回 {}。
+    """
     archive = output_dir / ARCHIVE_FILENAME
-    payload: dict = {}
     try:
         payload = json.loads(archive.read_text(encoding="utf-8"))
     except (OSError, ValueError):
-        # Upgrade an existing timestamped export into the persistent archive.
-        files = sorted(output_dir.glob("stellasora_gacha_*.json"), key=lambda path: path.stat().st_mtime)
-        if files:
-            try:
-                payload = json.loads(files[-1].read_text(encoding="utf-8"))
-            except (OSError, ValueError):
-                payload = {}
+        files = sorted(
+            (path for path in output_dir.glob("stellasora_gacha_*.json") if path.name != ARCHIVE_FILENAME),
+            key=lambda path: path.stat().st_mtime,
+        )
+        if not files:
+            return {}
+        try:
+            payload = json.loads(files[-1].read_text(encoding="utf-8"))
+        except (OSError, ValueError):
+            return {}
+    return payload if isinstance(payload, dict) else {}
+
+
+def _categories_from_payload(payload: dict) -> dict[int, list[dict]]:
     categories = payload.get("categories", {}) if isinstance(payload, dict) else {}
+    if not isinstance(categories, dict) or not categories:
+        return {}
     return {int(key): value for key, value in categories.items() if isinstance(value, list)}
 
 
-def _write_archive(output_dir: Path, categories: dict[int, list[dict]]) -> None:
+def load_archive_uid(output_dir: Path) -> str:
+    """归档里记着的 uid; 没记过返回空串。"""
+    return extract_uid(read_archive_payload(output_dir))
+
+
+def count_pulls(categories: dict[int, list[dict]]) -> int:
+    """分类表里的总抽数(Ids 个数)。"""
+    return sum(len(group.get("Ids") or []) for groups in categories.values() for group in groups)
+
+
+def _write_archive(output_dir: Path, categories: dict[int, list[dict]], uid: str = "") -> None:
     output_dir.mkdir(parents=True, exist_ok=True)
     archive = output_dir / ARCHIVE_FILENAME
     temporary = output_dir / f".{ARCHIVE_FILENAME}.tmp"
-    payload = {
-        "version": 1,
-        "updatedAt": datetime.now(timezone.utc).isoformat(),
-        "categories": {str(key): value for key, value in categories.items()},
-    }
+    payload: dict = {"version": 1}
+    if uid:
+        payload["uid"] = uid
+    payload["updatedAt"] = datetime.now(timezone.utc).isoformat()
+    payload["categories"] = {str(key): value for key, value in categories.items()}
     temporary.write_text(json.dumps(payload, ensure_ascii=False, indent=2), encoding="utf-8")
     temporary.replace(archive)
+
+
+@dataclass(frozen=True)
+class ImportResult:
+    categories: dict[int, list[dict]]
+    added_groups: int
+    added_pulls: int
+    total_groups: int
+    total_pulls: int
+    uid: str
+    source: Path
+
+
+def import_gacha_file(output_dir: Path, source: Path) -> ImportResult:
+    """把外部抽卡数据文件合并进本地归档并落盘。
+
+    能读的文件: 网页版/分享归档({"version","uid","updatedAt","categories"})、
+    本工具导出的 JSON/CSV、只含扁平 groups 的老导出。合并键是 (Gid, Time, Ids),
+    所以同一个文件反复导入不会重复计数。
+
+    返回 ImportResult; 解析不出任何记录时抛 ValueError(界面直接弹这个文案)。
+    """
+    output_dir = Path(output_dir)
+    text = read_import_text(Path(source))
+    categories, uid = parse_import_text(text, Path(source).suffix)
+    if not categories:
+        raise ValueError(f"未能从 {Path(source).name} 中解析到抽卡记录，请选择网页版/桌面版导出的 JSON 或 CSV")
+    payload = read_archive_payload(output_dir)
+    # 归档里历史上被拍平的分类先按 Gid 归位, 再合并 —— 否则同一批记录会因为
+    # 归档在 key 1、导入文件在 key 3 而各存一份, 抽数直接翻倍。归位是幂等的。
+    archived = normalize_category_keys(_categories_from_payload(payload))
+    before = sum(len(groups) for groups in archived.values())
+    merged = merge_gacha_categories(archived, categories)
+    after = sum(len(groups) for groups in merged.values())
+    # uid 以导入文件为准: 用户导进来的就是自己账号的数据, 空着就沿用归档里已有的
+    uid = uid or extract_uid(payload)
+    _write_archive(output_dir, merged, uid=uid)
+    return ImportResult(
+        categories=merged,
+        added_groups=after - before,
+        added_pulls=count_pulls(merged) - count_pulls(archived),
+        total_groups=after,
+        total_pulls=count_pulls(merged),
+        uid=uid,
+        source=Path(source),
+    )
+
+
+def read_import_text(source: Path) -> str:
+    """按 UTF-8(含 BOM) 读; 中文 Excel/老工具存出来的 CSV 常是 GB18030。"""
+    raw = source.read_bytes()
+    for encoding in ("utf-8-sig", "gb18030"):
+        try:
+            return raw.decode(encoding)
+        except UnicodeDecodeError:
+            continue
+    return raw.decode("utf-8", errors="replace")
 
 
 def load_latest_snapshot(output_dir: Path) -> Snapshot | None:

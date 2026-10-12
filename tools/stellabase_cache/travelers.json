@@ -253,6 +253,29 @@
     ]
   },
   {
+    "id": 139,
+    "name": "艾蕾",
+    "icon": "/stella/assets/Allie.png",
+    "portrait": "/stella/assets/head_13901_XL.png",
+    "description": "身为孤儿院的妈妈，艾蕾会用自己的长刀，拼尽全力保护自己的孩子们。",
+    "voiceActor": {
+      "cn": "曾彤",
+      "jp": "石飛恵里花"
+    },
+    "birthday": "3.21",
+    "grade": 5,
+    "element": "水",
+    "position": "先锋",
+    "attackType": "Melee",
+    "style": "稳扎稳打",
+    "faction": "自由旅人",
+    "tags": [
+      "先锋",
+      "稳扎稳打",
+      "自由旅人"
+    ]
+  },
+  {
     "id": 140,
     "name": "斯帕克拉",
     "icon": "/stella/assets/Sparkla.png",

@@ -27,8 +27,8 @@ from ..catalog import gacha_item_name, table_values
 from ..gacha_stats import build_category_stat, build_banner_stats_with_shared_pity
 from ..official_banners import cache_filename, load_banners, refresh_from_network, set_active_banners
 from ..service import (
-    detect_and_apply, extract_snapshot, load_latest_snapshot, probe_running_keys,
-    ARCHIVE_FILENAME, Snapshot,
+    detect_and_apply, extract_snapshot, import_gacha_file, load_archive_uid,
+    load_latest_snapshot, probe_running_keys, ARCHIVE_FILENAME, Snapshot,
 )
 from .constants import (
     GACHA_CATEGORY_ORDER, GACHA_CATEGORY_NAMES, APP_VERSION,
@@ -363,7 +363,8 @@ class StellaSoraWindow(QMainWindow):
             groups += len(items)
             for group in items:
                 pulls += len(table_values(group.get("Ids")))
-        return f"本地归档：{pulls} 抽 / {groups} 组记录"
+        uid = load_archive_uid(self._output_dir)
+        return f"本地归档：{pulls} 抽 / {groups} 组记录" + (f" · UID {uid}" if uid else "")
 
     def _refresh_account_view(self, note: str = "") -> None:
         account = account_config.load(self._output_dir)
@@ -614,13 +615,9 @@ class StellaSoraWindow(QMainWindow):
             self, "导入数据", str(self._output_dir), "抽卡数据 (*.json *.csv);;所有文件 (*)")
         if not path:
             return
+        source = Path(path)
         try:
-            groups, categories = self._parse_import_file(Path(path))
-            if not groups:
-                raise ValueError("未能从文件中解析到抽卡记录,请选择桌面版导出的 JSON/CSV")
-            snap = Snapshot(gacha=groups, emblems=[], files=(Path(path),), gacha_categories=categories or {1: groups})
-            self._apply_snapshot(snap)
-            self._status.setText(f"已导入 {Path(path).name} · {len(groups)} 条记录")
+            result = import_gacha_file(self._output_dir, source)
         except Exception as e:
             import traceback
             tb = "".join(traceback.format_exception_only(type(e), e))
@@ -632,42 +629,17 @@ class StellaSoraWindow(QMainWindow):
             except Exception:
                 pass
             QMessageBox.critical(self, "导入失败", f"{tb}\n\n(详细堆栈已写入 {log_path.name})")
+            return
 
-    @staticmethod
-    def _parse_import_file(path: Path) -> tuple[list, dict]:
-        from ..exporter import sanitize_gacha, sanitize_gacha_categories
-        text = path.read_text(encoding="utf-8")
-        if path.suffix.lower() == ".csv":
-            lines = [ln for ln in text.splitlines() if ln.strip()]
-            if len(lines) < 2:
-                return [], {}
-            header = [h.strip() for h in lines[0].split(",")]
-            gi = header.index("Gid") if "Gid" in header else None
-            ti = header.index("Time") if "Time" in header else None
-            ii = header.index("Id") if "Id" in header else None
-            buckets: dict = {}
-            if gi is not None and ii is not None:
-                for ln in lines[1:]:
-                    cols = [c.strip() for c in ln.split(",")]
-                    gid = cols[gi] if gi < len(cols) else "0"
-                    t = cols[ti] if ti is not None and ti < len(cols) else "0"
-                    item = int(cols[ii]) if ii < len(cols) and cols[ii].isdigit() else None
-                    if item is None:
-                        continue
-                    buckets.setdefault((gid, t), []).append(item)
-            groups = [{"Gid": int(k[0] or 0), "Time": int(k[1] or 0), "Ids": v, "NextPackage": ""}
-                      for k, v in buckets.items()]
-            return groups, {}
-        import json
-        data = json.loads(text)
-        # 桌面导出同时含 groups 与 categories,优先用 groups(扁平记录,避免重复计数)
-        if isinstance(data, dict) and isinstance(data.get("groups"), list):
-            return data["groups"], {}
-        categories = sanitize_gacha_categories(data)
-        groups = [g for gs in categories.values() for g in gs]
-        if not groups:
-            groups = sanitize_gacha(data)
-        return groups, categories
+        groups = [g for gs in result.categories.values() for g in gs]
+        self._apply_snapshot(Snapshot(gacha=groups, emblems=[], files=(source,),
+                                      gacha_categories=result.categories))
+        uid_text = f" · UID {result.uid}" if result.uid else ""
+        self._status.setText(
+            f"已导入 {source.name} · 新增 {result.added_groups} 组{uid_text}")
+        self._refresh_account_view(
+            f"已导入 {source.name}：新增 {result.added_groups} 组 / {result.added_pulls} 抽，"
+            f"已合并进本地归档（现有 {result.total_pulls} 抽 / {result.total_groups} 组）{uid_text}")
 
     def _backup_archive(self) -> None:
         ap = self._output_dir / ARCHIVE_FILENAME

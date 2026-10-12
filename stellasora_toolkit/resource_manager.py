@@ -14,6 +14,7 @@ from urllib.request import Request, urlopen
 
 from . import server_config
 from .app_updater import UPDATE_MANIFEST_ENV_VAR
+from .catalog import is_gacha_item
 
 
 # 资源清单与更新清单共用同一环境变量(STELLASORA_UPDATE_MANIFEST_GITHUB),
@@ -67,6 +68,9 @@ def _scrape_stellabase_items(progress: ProgressCallback | None = None) -> list[d
                 continue
             image_path = str(entry.get("icon") or "")
             if rarity < 5 or not image_path.startswith("/stella/assets/"):
+                continue
+            # 与 catalog_sync 同口径: BOSS/剧情单位不是抽卡产出物, 不该进头像库
+            if not is_gacha_item(item_id):
                 continue
             discovered.append(
                 {
