@@ -214,8 +214,9 @@ class SettingsView(QWidget):
         self._col.setContentsMargins(24, 20, 24, 24); self._col.setSpacing(16)
         outer.addWidget(_scroll(self._wrap))
         self._result = mk_label("", role="muted")
+        self._uid_state = mk_label("", role="muted")
 
-    def build(self, archive_path: str, summary: str) -> None:
+    def build(self, archive_path: str, summary: str, uid: str = "") -> None:
         clear_layout(self._col)
         self._col.addWidget(mk_label("设置", role="h1"))
         self._col.addWidget(mk_label("导入、管理本地归档与软件版本", role="muted"))
@@ -261,8 +262,45 @@ class SettingsView(QWidget):
         self._summary = mk_label(summary, role="body")
         c2.add(self._summary)
         self._col.addWidget(c2)
+        # UID 与分享文件
+        c3 = Card()
+        c3.add(mk_label("UID 与分享文件", role="h2"))
+        c3.add(mk_label(
+            "网页版与分享文件用 UID 标识一份记录, 文件名就是 <UID>.json。\n"
+            "导入过一次带 uid 的分享文件后工具会自动记住; 也可以在这里手填。"
+            "填好后每次刷新都会额外生成 <UID>.json(格式与分享文件完全一致)。",
+            role="muted"))
+        self._uid = QLineEdit(); self._uid.setPlaceholderText("例如 100872990")
+        self._uid.setText(uid or "")
+        c3.add(self._uid)
+        rowu = QHBoxLayout(); rowu.setSpacing(8)
+        rowu.addWidget(self._btn("保存 UID", "ghost", self._on_save_uid))
+        rowu.addWidget(self._btn("从游戏读取 UID", "ghost", self._on_read_uid))
+        rowu.addWidget(self._btn("导出发送文件", "primary", self._on_share))
+        rowu.addStretch(1)
+        c3.add(_hbox(rowu))
+        c3.add(self._uid_state)
+        self._col.addWidget(c3)
         self._col.addWidget(self._result)
         self._col.addStretch(1)
+
+    def set_uid(self, uid: str) -> None:
+        """同步 UID 输入框(导入文件学到新 uid 后调用)。"""
+        if hasattr(self, "_uid"):
+            self._uid.setText(uid or "")
+
+    def set_uid_state(self, text: str) -> None:
+        if hasattr(self, "_uid_state"):
+            self._uid_state.setText(text)
+
+    def _on_save_uid(self) -> None:
+        self._cb["save_uid"](self._uid.text())
+
+    def _on_read_uid(self) -> None:
+        self._cb["read_uid"]()
+
+    def _on_share(self) -> None:
+        self._cb["share"](self._uid.text())
 
     def refresh_server_buttons(self) -> None:
         """自动检测切换版本后, 让单选按钮跟随当前生效版本(与手动选择的按钮状态同步)。"""

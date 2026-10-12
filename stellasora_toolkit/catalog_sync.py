@@ -23,6 +23,7 @@ from __future__ import annotations
 import json
 import os
 import tempfile
+import time
 from pathlib import Path
 from typing import Callable
 from urllib.request import Request, urlopen
@@ -36,22 +37,76 @@ from .resource_manager import STELLABASE_API, STELLABASE_ASSET_API
 
 ProgressCallback = Callable[[str], None]
 
+# characters/discs 的返回体很大(秘纹连剧情全文一起返回), 实测同一台机器上 20 秒经常
+# 读不完、直接得到 0 字节。以前只试一次且失败静默返回空, 界面于是显示"资源库无缺失",
+# 用户完全看不出自动更新其实没跑起来 —— 这里改成带重试的较长超时。
+READ_TIMEOUT = 60.0
+READ_ATTEMPTS = 3
+CATALOG_CACHE_FILENAME = "stellasora_catalog_cache.json"
 
-def _read_url(url: str, progress: ProgressCallback | None = None, timeout: float = 20.0) -> bytes:
+# 最近一次五星目录查询失败了几路(0/1/2); 供界面区分"没有缺失"与"根本没查到"。
+_fetch_failures = 0
+
+
+def fetch_failures() -> int:
+    """最近一次五星目录查询失败的端点数(0 = 全部成功)。"""
+    return _fetch_failures
+
+
+def _read_url(url: str, progress: ProgressCallback | None = None,
+              timeout: float = READ_TIMEOUT, attempts: int = READ_ATTEMPTS) -> bytes:
+    """读一个 URL, 失败重试; 全部失败返回 b""(调用方按"查询失败"处理)。"""
     request = Request(url, headers={"User-Agent": "StellaSoraToolkit/1.0", "Accept": "application/json"})
+    for attempt in range(max(1, attempts)):
+        try:
+            with urlopen(request, timeout=timeout) as response:
+                return response.read()
+        except OSError:
+            if attempt + 1 < attempts:
+                if progress:
+                    progress(f"资源查询超时，正在重试 {attempt + 2}/{attempts}")
+                time.sleep(1.5 * (attempt + 1))
+    return b""
+
+
+def _catalog_cache_path(state_path: Path | None) -> Path | None:
+    """五星目录缓存与同步状态同目录(exports/)。"""
+    return Path(state_path).with_name(CATALOG_CACHE_FILENAME) if state_path else None
+
+
+def _save_catalog_cache(path: Path | None, items: list[dict]) -> None:
+    if path is None or not items:
+        return
     try:
-        with urlopen(request, timeout=timeout) as response:
-            return response.read()
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(json.dumps({"items": items}, ensure_ascii=False, indent=2), encoding="utf-8")
     except OSError:
-        return b""
+        pass
+
+
+def _load_catalog_cache(path: Path | None) -> list[dict]:
+    """上次成功查到的五星目录; 缺失/损坏返回 []。"""
+    if path is None:
+        return []
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return []
+    items = payload.get("items") if isinstance(payload, dict) else None
+    if not isinstance(items, list):
+        return []
+    return [item for item in items if isinstance(item, dict) and "id" in item and "kind" in item]
 
 
 def _fetch_five_star_catalog(progress: ProgressCallback | None = None) -> list[dict]:
     """拉取 characters + discs, 只保留五星。返回条目: id/kind/name/icon(相对路径)。
 
     lang 取当前激活版本(server_config), 因此注册进名称表的名称语言与游戏一致。
+    那一路查询失败时记进 fetch_failures() —— 空的目录不代表"没有新五星"。
     """
+    global _fetch_failures
     items: list[dict] = []
+    _fetch_failures = 0
     lang = server_config.api_lang()
     for endpoint, kind, rarity_key in (
         (f"characters?lang={lang}", "traveler", "grade"),
@@ -59,12 +114,15 @@ def _fetch_five_star_catalog(progress: ProgressCallback | None = None) -> list[d
     ):
         payload = _read_url(f"{STELLABASE_API}/{endpoint}", progress)
         if not payload:
+            _fetch_failures += 1
             continue
         try:
             rows = json.loads(payload.decode("utf-8"))
         except ValueError:
+            _fetch_failures += 1
             continue
         if not isinstance(rows, list):
+            _fetch_failures += 1
             continue
         for row in rows:
             if not isinstance(row, dict):
@@ -199,6 +257,26 @@ def audit_alignment(fetched: list[dict], record_ids: list[int]) -> dict:
     return {"unresolved": unresolved, "misjudged": misjudged, "clash": clash}
 
 
+def needs_online_lookup(record_ids) -> bool:
+    """记录里还有没有"不认识"的序号 —— 有才值得联网查五星目录。
+
+    判据: 这个序号显示出来还是占位符("旅人 #137" / "物品 #999" / "秘纹 #214999")。
+    全是已认识的序号时, 在线查询不可能带来新信息, 直接跳过 —— 这是刷新速度的
+    主要优化: 省掉两个大接口(实测单次就可能几十秒)与超时重试。
+
+    启动时的后台同步(不带 record_ids)仍会正常联网, 所以"发现新五星角色"
+    这条通路不受影响。
+    """
+    for row_id in record_ids:
+        try:
+            item_id = int(row_id)
+        except (TypeError, ValueError):
+            continue
+        if "#" in gacha_item_name(item_id):
+            return True
+    return False
+
+
 def _sync_once(
     state_path: Path | None,
     progress: ProgressCallback | None,
@@ -215,14 +293,38 @@ def _sync_once(
         icon_failed                     注册成功但头像下载失败的条目;
         appeared                        首次发现(state 文件从未记录过);
         record_count                    参与对齐校验的抽卡记录序号数;
-        audit_before/audit_after        注册前后各一次对齐校验, 前后对比即"是否自动对齐"。
+        audit_before/audit_after        注册前后各一次对齐校验, 前后对比即"是否自动对齐";
+        skipped_online                  序号都认识, 本次跳过了在线查询。
     """
     seen = _load_seen(state_path)
-    if progress:
-        progress("正在查询五星目录...")
-    fetched = _fetch_five_star_catalog(progress)
     ids = [int(row_id) for row_id in record_ids if str(row_id).lstrip("-").isdigit()]
-    audit_before = audit_alignment(fetched, ids)
+    skip_online = bool(ids) and not needs_online_lookup(ids)
+    cache_path = _catalog_cache_path(state_path)
+    from_cache = False
+    if skip_online:
+        if progress:
+            progress("记录的序号都已认识，跳过在线查询")
+        fetched: list[dict] = []
+        failures = 0
+        audit_before = audit_alignment(fetched, ids)
+    else:
+        if progress:
+            progress("正在查询五星目录...")
+        fetched = _fetch_five_star_catalog(progress)
+        failures = fetch_failures()
+    if fetched:
+        _save_catalog_cache(cache_path, fetched)
+    elif not skip_online:
+        # 一路都没查到(离线/超时): 用上次成功的目录, 至少把缺的头像补齐,
+        # 而不是把"没查到"当成"没有缺失"。
+        cached = _load_catalog_cache(cache_path)
+        if cached:
+            fetched = cached
+            from_cache = True
+            if progress:
+                progress(f"在线查询失败，改用上次缓存的五星目录（{len(cached)} 项）")
+    if not skip_online:
+        audit_before = audit_alignment(fetched, ids)
 
     names_by_kind = {"traveler": TRAVELER_NAMES, "disc": DISC_NAMES}
     missing_before = [dict(it) for it in fetched if it["id"] not in names_by_kind[it["kind"]]]
@@ -260,6 +362,9 @@ def _sync_once(
         "fetched_travelers": sum(1 for it in fetched if it["kind"] == "traveler"),
         "fetched_discs": sum(1 for it in fetched if it["kind"] == "disc"),
         "record_count": len(ids),
+        "skipped_online": skip_online,
+        "fetch_failed": failures,
+        "catalog_from_cache": from_cache,
         "missing_before": missing_before,
         "registered": registered,
         "downloaded": downloaded,

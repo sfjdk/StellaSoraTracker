@@ -27,8 +27,10 @@ from ..catalog import gacha_item_name, table_values
 from ..gacha_stats import build_category_stat, build_banner_stats_with_shared_pity
 from ..official_banners import cache_filename, load_banners, refresh_from_network, set_active_banners
 from ..service import (
-    detect_and_apply, extract_snapshot, import_gacha_file, load_archive_uid,
-    load_latest_snapshot, probe_running_keys, ARCHIVE_FILENAME, Snapshot,
+    detect_and_apply, effective_uid, extract_snapshot, import_gacha_file,
+    load_archive_categories, load_archive_uid, load_latest_snapshot, load_manual_uid,
+    normalize_uid, probe_running_keys, read_game_uid, refresh_share_file,
+    save_manual_uid, write_share_file, ARCHIVE_FILENAME, Snapshot,
 )
 from .constants import (
     GACHA_CATEGORY_ORDER, GACHA_CATEGORY_NAMES, APP_VERSION,
@@ -61,6 +63,7 @@ class _Bridge(QObject):
     progress = Signal(str)          # 后台任务的进度文本(写进状态栏)
     busy = Signal(bool)             # 后台任务生命周期锁(刷新期间含同步)
     account = Signal(str, object)   # (动作, 结果或异常) —— 账户/上传的异步结果
+    uid_read = Signal(object)       # 「从游戏读取 UID」的异步结果(dict)
 
 
 class StellaSoraWindow(QMainWindow):
@@ -74,7 +77,6 @@ class StellaSoraWindow(QMainWindow):
         self._adapt_window()
         self._busy = False
         self._snapshot = None
-        self._start_banner_refresh()
         self._bridge = _Bridge()
         self._bridge.done.connect(self._on_snapshot, Qt.QueuedConnection)
         self._bridge.error.connect(self._on_read_error, Qt.QueuedConnection)
@@ -83,6 +85,10 @@ class StellaSoraWindow(QMainWindow):
         self._bridge.progress.connect(self._on_progress, Qt.QueuedConnection)
         self._bridge.busy.connect(self._set_busy, Qt.QueuedConnection)
         self._bridge.account.connect(self._on_account_result, Qt.QueuedConnection)
+        self._bridge.uid_read.connect(self._on_uid_read, Qt.QueuedConnection)
+        # 后台同步会经 _bridge 发通知, 必须等它建好再接上 —— 否则启动竞态下
+        # 线程里的 emit 会撞上还没赋值的 self._bridge
+        self._start_banner_refresh()
 
         root = QWidget(); root.setObjectName("AppRoot")
         self.setCentralWidget(root)
@@ -96,6 +102,8 @@ class StellaSoraWindow(QMainWindow):
             "open": self._open_exports, "copy": self._copy_archive_path,
             "backup": self._backup_archive, "update": self._check_update,
             "server_changed": self._on_server_changed,
+            "save_uid": self._save_uid, "read_uid": self._read_uid_from_game,
+            "share": self._export_share_file,
         })
         self._account = AccountView({
             "save_url": self._account_save_url,
@@ -116,11 +124,26 @@ class StellaSoraWindow(QMainWindow):
         self._settings.build(
             str(self._output_dir / ARCHIVE_FILENAME),
             "尚未加载本地归档",
+            effective_uid(self._output_dir),
         )
+        self._refresh_uid_state()
         self._refresh_account_view()
         if self._start_note:
             self._status.setText(self._start_note)
         self._load_latest()
+        self._auto_export_share_file()
+
+    def _auto_export_share_file(self) -> None:
+        """启动时静默产出/刷新 <uid>.json: 不用点按钮, 文件始终是最新的。
+
+        只在已有归档且已知 UID 时做(纯本地读写, 不碰游戏进程)。
+        """
+        try:
+            path = refresh_share_file(self._output_dir)
+        except OSError:
+            return
+        if path is not None:
+            self._settings.set_uid_state(f"当前 UID：{effective_uid(self._output_dir)} · 已自动导出 {path.name}")
 
     # ---------------- 启动后台同步: 卡池信息 + 新五星角色 ----------------
     def _start_banner_refresh(self) -> None:
@@ -136,10 +159,16 @@ class StellaSoraWindow(QMainWindow):
 
     def _sync_in_background(self, cache_path: Path) -> None:
         """整合一次后台同步: 卡池信息刷新 + 检测新五星角色(注册名称/星级并下载头像)。"""
-        refresh_from_network(cache_path)
+        # 卡池信息失败不再静默: 状态栏说明"这次用的是本地缓存", 否则用户只会看到
+        # 新卡池一直没有名字/UP, 却不知道是网络没拉到
+        if not refresh_from_network(cache_path):
+            self._bridge.progress.emit("卡池信息在线更新失败，沿用本地缓存")
         try:
-            from ..catalog_sync import sync_catalog
+            from ..catalog_sync import sync_catalog, fetch_failures
             appeared, downloaded = sync_catalog(self._output_dir / "catalog_sync_state.json")
+            if fetch_failures() and not downloaded:
+                self._bridge.progress.emit("五星目录在线查询失败，头像/名称本次未更新")
+                return
         except Exception:
             return  # 增强功能, 失败静默退回内置清单
         if appeared:
@@ -327,7 +356,19 @@ class StellaSoraWindow(QMainWindow):
             self._status.setText("资源库同步失败")
             QMessageBox.warning(self, "刷新游戏数据", f"资源库同步失败:\n{report['error']}\n\n已退回内置清单。")
             return
+        # 一路都没查到 ≠ 没有缺失: 以前这里会显示"资源库无缺失", 让人以为自动更新是好的
+        if report.get("fetch_failed") and not report.get("catalog_from_cache"):
+            self._status.setText("资源库同步失败(五星目录查询超时)")
+            QMessageBox.warning(
+                self, "刷新游戏数据",
+                "五星目录在线查询失败（网络超时或被拦截），本次没有更新角色名称和头像。\n\n"
+                "抽卡记录本身已经保存好了；稍后再点一次「刷新游戏数据」即可补全。")
+            return
         text, problems = _format_sync_report(report)
+        if report.get("skipped_online"):
+            # 序号都认识: 没联网, 直接一行状态, 不弹窗
+            self._status.setText("刷新完成 · 跳过在线查询（序号都已认识）")
+            return
         notable = bool(
             report["missing_before"] or report["registered"] or report["downloaded"]
             or report["icon_failed"] or problems
@@ -363,7 +404,7 @@ class StellaSoraWindow(QMainWindow):
             groups += len(items)
             for group in items:
                 pulls += len(table_values(group.get("Ids")))
-        uid = load_archive_uid(self._output_dir)
+        uid = load_archive_uid(self._output_dir) or load_manual_uid(self._output_dir)
         return f"本地归档：{pulls} 抽 / {groups} 组记录" + (f" · UID {uid}" if uid else "")
 
     def _refresh_account_view(self, note: str = "") -> None:
@@ -519,7 +560,17 @@ class StellaSoraWindow(QMainWindow):
         self._apply_snapshot(snap)
         self._refresh_server_labels()  # 后台自动检测可能已切换版本
         self._set_busy(False)
-        self._status.setText(f"读取完成 · {datetime.now():%H:%M:%S}")
+        # 刷新时要能看见"确实导出了什么": 分享文件 + UID 来源
+        share = getattr(snap, "share_file", None)
+        tail = f" · 已导出 {share.name}" if share is not None else ""
+        self._status.setText(f"读取完成 · {datetime.now():%H:%M:%S}{tail}")
+        uid = getattr(snap, "uid", "")
+        note = getattr(snap, "uid_note", "")
+        if uid:
+            self._settings.set_uid(uid)
+        self._refresh_uid_state()
+        if note and ("游戏内存" in note or "候选" in note):
+            self._bridge.notify.emit("info", "账号 UID", f"{note}\n\n分享文件: {share.name if share else '未生成'}")
 
     def _on_read_error(self, msg) -> None:
         self._set_busy(False)
@@ -610,6 +661,108 @@ class StellaSoraWindow(QMainWindow):
         QApplication.clipboard().setText(str(self._output_dir / ARCHIVE_FILENAME))
         self._status.setText("归档路径已复制")
 
+    # ---------------- UID / 分享文件 ----------------
+
+    def _refresh_uid_state(self) -> None:
+        """把当前生效的 UID 来源显示出来, 免得用户不知道工具记住了什么。"""
+        manual = load_manual_uid(self._output_dir)
+        learned = load_archive_uid(self._output_dir)
+        uid = manual or learned
+        if not uid:
+            note = "尚未设置 UID：导入一次分享文件, 或在这里手填"
+        elif manual:
+            note = f"当前 UID：{uid}（手动设置）· 分享文件：{uid}.json"
+        else:
+            note = f"当前 UID：{uid}（从导入的分享文件记住）· 分享文件：{uid}.json"
+        self._settings.set_uid_state(note)
+
+    def _save_uid(self, text: str) -> None:
+        raw = str(text or "").strip()
+        uid = normalize_uid(raw)
+        if raw and not uid:
+            QMessageBox.warning(self, "UID 无效", "UID 只能用数字、字母、下划线或短横线（最长 64 位）。")
+            return
+        if not save_manual_uid(self._output_dir, uid):
+            QMessageBox.critical(self, "保存失败", "配置目录不可写，UID 没有保存。")
+            return
+        self._settings.set_uid(uid)
+        self._refresh_uid_state()
+        self._status.setText(f"UID 已保存：{uid}" if uid else "已清除手动 UID")
+
+    def _read_uid_from_game(self) -> None:
+        """「从游戏读取 UID」: 后台只读扫描, 结果回来后自动填好并保存。"""
+        self._settings.set_uid_state("正在扫描游戏内存, 请稍候…")
+        self._status.setText("正在从游戏内存读取账号 UID")
+
+        def work() -> None:
+            try:
+                result = read_game_uid(self._output_dir,
+                                       progress=lambda msg: self._bridge.progress.emit(msg))
+            except Exception as err:                      # noqa: BLE001
+                self._bridge.uid_read.emit({"error": str(err)})
+                return
+            self._bridge.uid_read.emit({"search": result})
+
+        threading.Thread(target=work, daemon=True).start()
+
+    def _on_uid_read(self, payload: dict) -> None:
+        if payload.get("error"):
+            self._settings.set_uid_state("")
+            self._refresh_uid_state()
+            self._status.setText("读取 UID 失败")
+            QMessageBox.warning(self, "从游戏读取 UID",
+                                f"没能读到账号 UID:\n{payload['error']}\n\n"
+                                "请确认游戏客户端正在运行并已登录。也可以手动填写。")
+            return
+        search = payload["search"]
+        if search.found:
+            if save_manual_uid(self._output_dir, search.uid):
+                self._settings.set_uid(search.uid)
+                self._refresh_uid_state()
+                self._status.setText(f"已读取并保存 UID {search.uid}")
+                # 学到 UID 后立刻产出分享文件, 不用再点「导出发送文件」
+                try:
+                    path = refresh_share_file(self._output_dir)
+                except OSError:
+                    path = None
+                if path is not None:
+                    self._settings.set_uid_state(f"当前 UID：{search.uid} · 已自动导出 {path.name}")
+                extra = ("\n\n（内存里有多个候选值, 已按当前设置/归档里记录的 UID 选中；"
+                         "如不对请手动改。）" if search.ambiguous else "")
+                QMessageBox.information(self, "从游戏读取 UID",
+                                       f"已从游戏内存读取并保存:\n{search.summary()}{extra}")
+                return
+            QMessageBox.warning(self, "从游戏读取 UID", "读到了 UID 但保存失败, 配置目录不可写。")
+            return
+        self._settings.set_uid_state("")
+        self._refresh_uid_state()
+        self._status.setText("未找到账号 UID")
+        QMessageBox.information(self, "从游戏读取 UID", search.summary() + "\n\n也可以手动填写并保存。")
+
+    def _export_share_file(self, text: str = "") -> None:
+        """导出一份与网页版/分享文件完全同格式的 <uid>.json。"""
+        uid = normalize_uid(text) or effective_uid(self._output_dir)
+        if not uid:
+            QMessageBox.information(
+                self, "导出发送文件",
+                "还没有 UID：先在下面填一个并点「保存 UID」，"
+                "或者导入一次带 uid 的分享文件（工具会自动记住）。")
+            return
+        categories = load_archive_categories(self._output_dir)
+        if not categories:
+            QMessageBox.information(self, "导出发送文件", "本地归档里还没有记录，请先点「刷新游戏数据」。")
+            return
+        try:
+            path = write_share_file(self._output_dir, categories, uid)
+        except OSError as err:
+            QMessageBox.critical(self, "导出失败", str(err))
+            return
+        if path is None:
+            QMessageBox.warning(self, "导出失败", "UID 不合法，未能生成分享文件。")
+            return
+        self._status.setText(f"已导出 {path.name}")
+        QMessageBox.information(self, "导出发送文件", f"已生成：\n{path}")
+
     def _import_data(self) -> None:
         path, _ = QFileDialog.getOpenFileName(
             self, "导入数据", str(self._output_dir), "抽卡数据 (*.json *.csv);;所有文件 (*)")
@@ -635,11 +788,14 @@ class StellaSoraWindow(QMainWindow):
         self._apply_snapshot(Snapshot(gacha=groups, emblems=[], files=(source,),
                                       gacha_categories=result.categories))
         uid_text = f" · UID {result.uid}" if result.uid else ""
+        share_text = f"，已生成 {result.share_file.name}" if result.share_file else ""
+        self._settings.set_uid(result.uid)
+        self._refresh_uid_state()
         self._status.setText(
-            f"已导入 {source.name} · 新增 {result.added_groups} 组{uid_text}")
+            f"已导入 {source.name} · 新增 {result.added_groups} 组{uid_text}{share_text}")
         self._refresh_account_view(
             f"已导入 {source.name}：新增 {result.added_groups} 组 / {result.added_pulls} 抽，"
-            f"已合并进本地归档（现有 {result.total_pulls} 抽 / {result.total_groups} 组）{uid_text}")
+            f"已合并进本地归档（现有 {result.total_pulls} 抽 / {result.total_groups} 组）{uid_text}{share_text}")
 
     def _backup_archive(self) -> None:
         ap = self._output_dir / ARCHIVE_FILENAME
@@ -670,11 +826,17 @@ def _fmt_sync_items(items: list[dict], limit: int = 6) -> str:
 def _format_sync_report(report: dict) -> tuple[str, list[str]]:
     """把同步报告拼成弹窗文本。返回 (正文, 未对齐项列表 —— 非空时弹警告框)。"""
     missing = report["missing_before"]
-    query = (
-        f"五星目录 {report['fetched_travelers']} 个角色 / {report['fetched_discs']} 个秘纹"
-        + (" —— 均已注册 ✔" if not missing
-           else f", 发现 {len(missing)} 个未注册: {_fmt_sync_items(missing)}")
-    )
+    if report.get("skipped_online"):
+        # 记录里的序号都认识: 没联网, 也就没有"目录规模"可报
+        query = "已跳过在线查询（记录里的序号都已认识, 不需要联网）"
+    else:
+        query = (
+            f"五星目录 {report['fetched_travelers']} 个角色 / {report['fetched_discs']} 个秘纹"
+            + (" —— 均已注册 ✔" if not missing
+               else f", 发现 {len(missing)} 个未注册: {_fmt_sync_items(missing)}")
+        )
+    if report.get("catalog_from_cache"):
+        query += "（在线查询失败, 用的是上次缓存的目录）"
     bits = [f"注册名称 {len(report['registered'])} 条", f"下载头像 {len(report['downloaded'])} 张"]
     if report["existing"]:
         bits.append(f"本地已有 {len(report['existing'])} 张")

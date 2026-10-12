@@ -1,6 +1,6 @@
 {
-  "version": "1.2.19",
-  "url": "https://github.com/sfjdk/StellaSoraTracker/releases/download/v1.2.19/StellaSoraGachaTool-1.2.19-win64.zip",
-  "sha256": "cb5c259850c883a4ab2a6f383bd11a7810124c8042b256cb1f211c809e82c82f",
-  "notes": "修复角色信息错误: 补登记 137 埃莉诺、139 艾蕾与秘纹 214058-214062 —— 此前这些五星会显示成“物品 #139/旅人 #137”并且不计入五星, 导致五星数量、概率与垫抽全部算错; 五星同步不再把 BOSS 单位(魔侍巨像)当成可抽取角色。另新增: 导入网页版/分享归档(带 uid 外壳)时按官方分类完整保留四类记录, 导入结果合并进本地归档并保留 uid。"
+  "version": "1.2.20",
+  "url": "https://github.com/sfjdk/StellaSoraTracker/releases/download/v1.2.20/StellaSoraGachaTool-1.2.20-win64.zip",
+  "sha256": "16b40f4d45d2a5a2dc55f5adaa6ac699b7bb2c0367e4fec8d57e0e3e20d66775",
+  "notes": "性能: 记录序号都认识时「刷新游戏数据」不再联网(省掉两个大接口与超时重试), 全内存扫描跳过模块映像, UID 探测改为先试最可能的字段名(命中即收工), 进度里显示耗时秒数。自动导出: 启动时与学到 UID 后自动产出/刷新 <UID>.json, 不必再点按钮。修复: 未保存 UID 时刷新会在探测 UID 时读到假表抛 unreasonable Lua table size 导致整个刷新失败(现在一律跳过, 探测绝不连累招募读取); 补登记 137 埃莉诺、139 艾蕾与秘纹 214058-214062(此前显示成物品 #139 且不计入五星)。"
 }

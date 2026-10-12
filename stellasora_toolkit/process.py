@@ -169,7 +169,7 @@ class RemoteProcess:
                 and basic_protect != PAGE_NOACCESS
                 and basic_protect in READABLE_PAGE_FLAGS
             ):
-                result.append(MemoryRegion(base, size, int(mbi.Protect)))
+                result.append(MemoryRegion(base, size, int(mbi.Protect), int(mbi.Type)))
             next_address = base + max(size, 0x1000)
             if next_address <= address:
                 break
