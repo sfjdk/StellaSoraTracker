@@ -13,6 +13,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from time import perf_counter
 
 from .discovery import LuaTableDiscovery
 
@@ -62,6 +63,7 @@ class UidSearch:
     field_name: str = ""
     candidates: tuple[tuple[str, str], ...] = field(default_factory=tuple)
     ambiguous: bool = False
+    budget_exceeded: bool = False      # 时间预算用完(还有活没干完)
 
     @property
     def found(self) -> bool:
@@ -73,6 +75,8 @@ class UidSearch:
         if self.ambiguous:
             pairs = "、".join(f"{name}={value}" for name, value in self.candidates[:4])
             return f"检测到多个候选 UID，需要手动确认：{pairs}"
+        if self.budget_exceeded:
+            return "UID 扫描超时，本次先跳过（下次刷新会再试）"
         return "游戏内存里没有找到账号 UID"
 
 
@@ -81,6 +85,7 @@ def find_account_uid(
     *,
     preferred: str = "",
     field_hint: str = "",
+    deadline: float | None = None,
 ) -> UidSearch:
     """在游戏内存里找账号 UID。
 
@@ -90,10 +95,16 @@ def find_account_uid(
                   (游戏里的字段可能叫 _roleId 之类, 光靠名字扫不到)。
     field_hint 上次学到的字段名: 先只试它(精确匹配, 便宜很多), 命中就直接返回,
                不再做"扫描全部含 uid 的字符串"那一步。
+    deadline   perf_counter() 的绝对时间上限: 用完就返回"超时"结果而不是继续扫。
+               内存扫描量随游戏进程大小浮动, 不能让它无限拖住刷新。
 
     两者都没有则返回空结果, 由调用方兜底(手填或导入)。
     """
-    if field_hint:
+
+    def out_of_time() -> bool:
+        return deadline is not None and perf_counter() > deadline
+
+    if field_hint and not out_of_time():
         hint_values: list[str] = []
         for value in discovery.find_uid_candidates(is_plausible_uid, names=[field_hint]).values():
             hint_values.append(str(value).strip())
@@ -106,6 +117,8 @@ def find_account_uid(
     # 两个快速字段给出的值不一致时视为歧义 —— 宁可让用户确认, 也不要写错 UID。
     quick: dict[str, str] = {}
     for name in QUICK_FIELDS:
+        if out_of_time():
+            return UidSearch(budget_exceeded=True)
         for value in discovery.find_uid_candidates(is_plausible_uid, names=[name]).values():
             quick[str(name)] = str(value).strip()
     if quick:
@@ -119,12 +132,14 @@ def find_account_uid(
             ordered = tuple(sorted(quick.items(), key=lambda item: _preference(item[0])))
             return UidSearch("", "", ordered, True)
 
+    if out_of_time():
+        return UidSearch(budget_exceeded=True)
     raw = discovery.find_uid_candidates(is_plausible_uid)
     pairs = {str(name): str(value).strip() for name, value in raw.items()}
-    if preferred and preferred not in pairs.values():
+    if preferred and preferred not in pairs.values() and not out_of_time():
         pairs.update(discovery.find_fields_with_value(preferred))
     if not pairs:
-        return UidSearch()
+        return UidSearch(budget_exceeded=out_of_time())
     ordered = tuple(sorted(pairs.items(), key=lambda item: (_preference(item[0]), len(item[0]), item[0])))
     values = {value for _name, value in ordered}
 

@@ -185,11 +185,14 @@ class ImportPersistTests(unittest.TestCase):
 
             self.assertEqual(result.added_groups, GROUP_COUNT)
             self.assertEqual(result.uid, "100872990")
-            archive = json.loads((directory / service.ARCHIVE_FILENAME).read_text(encoding="utf-8"))
+            # 归档落在当前账号目录下(多账号), 通过公开 API 读回来校验
+            archive = json.loads(
+                (service.active_data_dir(directory) / service.ARCHIVE_FILENAME).read_text(encoding="utf-8"))
             self.assertEqual(archive["uid"], "100872990")
             self.assertEqual(archive["version"], 1)
             self.assertEqual(sorted(archive["categories"]), ["1", "2", "3", "4"])
             self.assertEqual(service.load_archive_uid(directory), "100872990")
+            self.assertEqual(service.load_archive_categories(directory), result.categories)
 
     def test_reimporting_the_same_file_adds_nothing(self):
         with temp_workdir("reimport") as directory:
@@ -223,7 +226,7 @@ class ImportPersistTests(unittest.TestCase):
 
             service.import_gacha_file(directory, source)
 
-            archived = service._categories_from_payload(service.read_archive_payload(directory))
+            archived = service.load_archive_categories(directory)
             self.assertEqual(sorted(archived), [1, 2, 3, 4])
             self.assertEqual(sum(len(v) for v in archived.values()), GROUP_COUNT)
 
@@ -231,9 +234,9 @@ class ImportPersistTests(unittest.TestCase):
         with temp_workdir("uid_rewrite") as directory:
             service._write_archive(directory, {1: [group(10130, 1, [1])]}, uid="100872990")
             payload = service.read_archive_payload(directory)
-            # 刷新游戏数据时就是这么写的: 沿用归档里已有的 uid
-            service._write_archive(directory, service._categories_from_payload(payload),
-                                   uid=service.load_archive_uid(directory))
+            archived = service._categories_from_payload(payload)
+            # 刷新游戏数据时就是这么写的: 沿用当前账号已有的 uid
+            service._write_archive(directory, archived, uid=service.load_archive_uid(directory))
             self.assertEqual(service.load_archive_uid(directory), "100872990")
 
     def test_uid_from_import_wins_over_an_older_one(self):

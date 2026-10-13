@@ -15,10 +15,10 @@ from PySide6.QtGui import QGuiApplication
 from PySide6.QtWidgets import (
     QMainWindow, QWidget, QVBoxLayout, QHBoxLayout, QGridLayout,
     QLabel, QPushButton, QTabWidget, QMessageBox, QProgressBar, QApplication,
-    QFileDialog,
+    QFileDialog, QInputDialog,
 )
 
-from .. import server_config
+from .. import accounts, server_config
 from .. import account_config, server_upload
 from ..app_updater import (
     check_for_update, download_update, launch_update_installer, update_urls,
@@ -28,9 +28,10 @@ from ..gacha_stats import build_category_stat, build_banner_stats_with_shared_pi
 from ..official_banners import cache_filename, load_banners, refresh_from_network, set_active_banners
 from ..service import (
     detect_and_apply, effective_uid, extract_snapshot, import_gacha_file,
-    load_archive_categories, load_archive_uid, load_latest_snapshot, load_manual_uid,
-    normalize_uid, probe_running_keys, read_game_uid, refresh_share_file,
-    save_manual_uid, write_share_file, ARCHIVE_FILENAME, Snapshot,
+    load_archive_uid, load_latest_snapshot, load_manual_uid, export_share_for_uid,
+    normalize_uid, probe_running_groups, read_game_uid,
+    refresh_share_file, save_manual_uid, merge_accounts,
+    ARCHIVE_FILENAME, Snapshot,
 )
 from .constants import (
     GACHA_CATEGORY_ORDER, GACHA_CATEGORY_NAMES, APP_VERSION,
@@ -64,6 +65,7 @@ class _Bridge(QObject):
     busy = Signal(bool)             # 后台任务生命周期锁(刷新期间含同步)
     account = Signal(str, object)   # (动作, 结果或异常) —— 账户/上传的异步结果
     uid_read = Signal(object)       # 「从游戏读取 UID」的异步结果(dict)
+    catalog_done = Signal(int)      # 后台名称/头像同步结束(下载张数) → 重画界面
 
 
 class StellaSoraWindow(QMainWindow):
@@ -86,6 +88,7 @@ class StellaSoraWindow(QMainWindow):
         self._bridge.busy.connect(self._set_busy, Qt.QueuedConnection)
         self._bridge.account.connect(self._on_account_result, Qt.QueuedConnection)
         self._bridge.uid_read.connect(self._on_uid_read, Qt.QueuedConnection)
+        self._bridge.catalog_done.connect(self._on_catalog_done, Qt.QueuedConnection)
         # 后台同步会经 _bridge 发通知, 必须等它建好再接上 —— 否则启动竞态下
         # 线程里的 emit 会撞上还没赋值的 self._bridge
         self._start_banner_refresh()
@@ -102,8 +105,14 @@ class StellaSoraWindow(QMainWindow):
             "open": self._open_exports, "copy": self._copy_archive_path,
             "backup": self._backup_archive, "update": self._check_update,
             "server_changed": self._on_server_changed,
+            "server_auto": self._reset_server_auto,
             "save_uid": self._save_uid, "read_uid": self._read_uid_from_game,
             "share": self._export_share_file,
+            "account_switch": self._switch_account,
+            "account_new": self._new_account,
+            "account_rename": self._rename_account,
+            "account_merge": self._merge_account,
+            "account_remove": self._remove_account,
         })
         self._account = AccountView({
             "save_url": self._account_save_url,
@@ -121,12 +130,15 @@ class StellaSoraWindow(QMainWindow):
         self._tabs.addTab(self._help, "使用说明")
         root_lay.addWidget(self._tabs, 1)
 
+        accounts.ensure_ready(self._output_dir)
         self._settings.build(
-            str(self._output_dir / ARCHIVE_FILENAME),
+            str(accounts.active_data_dir(self._output_dir) / ARCHIVE_FILENAME),
             "尚未加载本地归档",
             effective_uid(self._output_dir),
         )
         self._refresh_uid_state()
+        repair_note = accounts.repair(self._output_dir)   # 补登记 UID / 离开空账号
+        self._refresh_account_picker(repair_note)
         self._refresh_account_view()
         if self._start_note:
             self._status.setText(self._start_note)
@@ -178,6 +190,8 @@ class StellaSoraWindow(QMainWindow):
                 "info", "检测到新五星角色",
                 f"已自动检测到新五星: {names}{more}\n头像下载 {len(downloaded)} 张, 刷新游戏数据后生效。",
             )
+        # 语言切换后名称表被重新写入, 界面必须重画一次, 否则记录里还是旧语言的文字
+        self._bridge.catalog_done.emit(len(downloaded))
 
     @staticmethod
     def _subtitle_text() -> str:
@@ -192,6 +206,12 @@ class StellaSoraWindow(QMainWindow):
             self._sub.setText(self._subtitle_text())
         if hasattr(self, "_settings"):
             self._settings.refresh_server_buttons()
+            manual = server_config.load_manual(server_config.config_path(self._output_dir))
+            source = "手动指定" if manual else "自动识别"
+            hint = "点「自动识别」可交回自动判断" if manual else "刷新时按内存文本自动判断"
+            self._settings.set_server_state(
+                f"当前生效: {self._profile.label}（{source}）· 名称语言 "
+                f"{self._profile.api_lang} · {hint}")
 
     def _prompt_both_running(self) -> str | None:
         """两个客户端同时运行时弹窗选择本次读取的服务器; 取消返回 None。"""
@@ -211,13 +231,23 @@ class StellaSoraWindow(QMainWindow):
         return key if key is not None else None
 
     def _on_server_changed(self, key: str) -> None:
-        """设置页手动切换国服/国际服: 持久化 + 按新版本语言重新拉取卡池与名称表。"""
+        """设置页手动切换版本: 记为"手动指定"(自动识别不再覆盖) + 按新语言重新补全。"""
         if not server_config.set_active(key):
             return
-        server_config.save_key(self._output_dir / server_config.CONFIG_FILENAME, key)
+        server_config.save_key(server_config.config_path(self._output_dir), key, manual=True)
         self._refresh_server_labels()
         self._status.setText(
-            f"已切换到 {self._profile.label} · 客户端 {self._profile.client_names[0]}，正在按该版本语言同步...")
+            f"已切换到 {self._profile.label} · 客户端 {self._profile.client_names[0]}"
+            "（手动指定，已记住），正在按该版本语言同步...")
+        self._start_banner_refresh()
+
+    def _reset_server_auto(self) -> None:
+        """交回自动识别: 下次刷新按内存里的语言文本判断该用哪版。"""
+        self._profile = server_config.active()
+        server_config.save_key(server_config.config_path(self._output_dir),
+                               self._profile.key, manual=False)
+        self._refresh_server_labels()
+        self._status.setText("已设为自动识别: 下次刷新会按游戏内存里的语言文本判断版本")
         self._start_banner_refresh()
 
     # ---------------- 窗口自适应 ----------------
@@ -313,7 +343,8 @@ class StellaSoraWindow(QMainWindow):
         if self._busy:
             return
         # 两个客户端同时运行: 主线程弹窗让用户选定, 无需先启动后台任务
-        if len(probe_running_keys()) == 2:
+        # (国际服/日服共用 StellaSora.exe, 所以按"客户端"分组计数, 不能按版本数)
+        if len(probe_running_groups()) == 2:
             choice = self._prompt_both_running()
             if choice is None:      # 用户取消
                 self._status.setText("两种客户端均在运行, 未选择服务器, 未读取")
@@ -584,6 +615,147 @@ class StellaSoraWindow(QMainWindow):
             QMessageBox.information(self, title, text)
         self._status.setText("检查完成")
 
+    # ---------------- 账号 ----------------
+
+    def _refresh_account_picker(self, note: str = "") -> None:
+        """刷新设置页的账号下拉框与状态文字(带每个账号的记录数, 一眼看出哪份有数据)。"""
+        state = accounts.ensure_ready(self._output_dir)
+        current = state.active_account
+        counts = {account.key: accounts.archive_group_count(self._output_dir, account.key)
+                  for account in state.accounts}
+        # 有记录的排前面: 新建的空账号落在最后, 免得一打开下拉框先看到"空"
+        ordered = sorted(state.accounts,
+                         key=lambda account: (0 if counts.get(account.key, -1) > 0 else 1,
+                                              -max(counts.get(account.key, -1), 0),
+                                              account.label))
+        items = []
+        for account in ordered:
+            groups = counts.get(account.key, -1)
+            items.append((account.key, f"{account.label} · {'空' if groups <= 0 else f'{groups} 组'}"))
+        self._settings.set_accounts(items, current.key if current else "")
+
+        if current is not None:
+            groups = counts.get(current.key, -1)
+            detail = (f"当前账号: {current.label} · " +
+                      ("还没有记录" if groups <= 0 else f"{groups} 组记录") +
+                      f" · 数据目录 accounts/{current.key}/")
+            if groups <= 0:
+                with_data = [a for a in state.accounts
+                             if counts.get(a.key, -1) > 0 and a.key != current.key]
+                if with_data:
+                    detail += f"　⚠ {with_data[0].label}（{counts[with_data[0].key]} 组）有记录, 在上面的下拉框选它即可"
+            elif not current.uid:
+                # 有记录但没登记 UID: 很可能和另一个账号是同一个号(那次刷新没读到 UID)
+                uid_accounts = [a for a in state.accounts if a.uid and a.key != current.key]
+                if uid_accounts:
+                    detail += (f"　⚠ 当前账号还没登记 UID; 如果这就是 {uid_accounts[0].label} 的号, "
+                               "用「合并到…」并过去(按记录去重, 不会重复计数)")
+        else:
+            detail = "还没有账号"
+        self._settings.set_account_state(note or detail)
+
+    def _merge_account(self, key: str) -> None:
+        """把当前账号的记录合并到另一个账号(幂等), 用于收拾"记录读进了别的账号"。"""
+        state = accounts.load_state(self._output_dir)
+        others = [a for a in state.accounts if a.key != key]
+        if not others:
+            QMessageBox.information(self, "合并账号", "只有一个账号, 没有可合并的目标。")
+            return
+        choices = [f"{a.label} · {accounts.archive_group_count(self._output_dir, a.key)} 组"
+                   for a in others]
+        picked, ok = QInputDialog.getItem(self, "合并账号", "把当前账号的记录并入:", choices, 0, False)
+        if not ok or not picked:
+            return
+        target = others[choices.index(picked)]
+        source = next((a for a in state.accounts if a.key == key), None)
+        groups = accounts.archive_group_count(self._output_dir, key)
+        answer = QMessageBox.question(
+            self, "合并账号",
+            f"把 {source.label if source else key}（{groups} 组）的记录合并进 {target.label}？\n\n"
+            "⚠ 请确认这两个是**同一个游戏账号**才合并 —— 不同账号的垫抽/保底是分开算的, "
+            "合并后无法自动拆开(原目录会改名保留, 需要时人工恢复)。\n\n"
+            "同一批记录不会重复计数(按 Gid/Time/Ids 合并); 源账号目录会改名成 "
+            "<账号>.deleted_<时间> 保留。")
+        if answer != QMessageBox.Yes:
+            return
+        try:
+            added_groups, added_pulls = merge_accounts(self._output_dir, key, target.key)
+        except (OSError, ValueError) as err:
+            QMessageBox.critical(self, "合并失败", str(err))
+            return
+        self._refresh_account_picker()
+        self._switch_account(target.key)
+        self._status.setText(f"已把 {added_groups} 组 / {added_pulls} 抽并入 {target.label}")
+
+    def _switch_account(self, key: str) -> None:
+        if not accounts.switch(self._output_dir, key):
+            return
+        account = accounts.active_account(self._output_dir)
+        self._settings.set_uid(load_archive_uid(self._output_dir))
+        self._refresh_uid_state()
+        self._refresh_account_picker()
+        self._load_latest()
+        self._status.setText(f"已切换到账号 {account.label if account else key}")
+
+    def _new_account(self) -> None:
+        text, ok = QInputDialog.getText(self, "新建账号", "账号 UID(可留空, 之后从游戏读取):")
+        if not ok:
+            return
+        uid = normalize_uid(text)
+        if text.strip() and not uid:
+            QMessageBox.warning(self, "UID 无效", "UID 只能用数字、字母、下划线或短横线。")
+            return
+        name, _ = QInputDialog.getText(self, "新建账号", "备注名(可留空):")
+        account = accounts.create(self._output_dir, uid=uid, name=str(name or "").strip())
+        if account is None:
+            QMessageBox.critical(self, "新建失败", "配置目录不可写。")
+            return
+        accounts.switch(self._output_dir, account.key)
+        self._refresh_account_picker(f"已新建账号 {account.label}")
+        self._switch_account(account.key)
+        # 新账号一定是空的: 说清楚怎么回到原来那份, 免得以为记录没了
+        others = [a for a in accounts.load_state(self._output_dir).accounts if a.key != account.key]
+        with_data = [a for a in others if accounts.archive_group_count(self._output_dir, a.key) > 0]
+        if not account.uid or with_data:
+            tip = ""
+            if with_data:
+                first = with_data[0]
+                tip = (f"\n\n你原来的记录在 {first.label}"
+                       f"（{accounts.archive_group_count(self._output_dir, first.key)} 组），"
+                       "在上面的下拉框选它即可切回。")
+            QMessageBox.information(self, "新建账号",
+                                    f"已新建账号 {account.label}（还没有记录）。{tip}\n\n"
+                                    "提示: 一般不需要手动新建 —— 游戏里换账号后点「刷新游戏数据」，"
+                                    "工具会按读到的 UID 自动建号并切过去。")
+
+    def _rename_account(self, key: str) -> None:
+        if not key:
+            return
+        current = next((a for a in accounts.load_state(self._output_dir).accounts if a.key == key), None)
+        text, ok = QInputDialog.getText(self, "重命名账号", "备注名:", text=current.name if current else "")
+        if not ok:
+            return
+        if accounts.rename(self._output_dir, key, str(text or "")):
+            self._refresh_account_picker("备注名已更新")
+        self._refresh_uid_state()
+
+    def _remove_account(self, key: str) -> None:
+        if not key:
+            return
+        state = accounts.load_state(self._output_dir)
+        if len(state.accounts) <= 1:
+            QMessageBox.information(self, "删除账号", "至少要保留一个账号。")
+            return
+        account = next((a for a in state.accounts if a.key == key), None)
+        answer = QMessageBox.question(
+            self, "删除账号",
+            f"确定删除账号 {account.label if account else key}？\n"
+            "记录不会被真正删除 —— 目录会改名为 <账号>.deleted_<时间> 保留在 accounts/ 下。")
+        if answer != QMessageBox.Yes:
+            return
+        if accounts.remove(self._output_dir, key):
+            self._switch_account(accounts.load_state(self._output_dir).active)
+
     def _apply_snapshot(self, snap) -> None:
         self._snapshot = snap
         from ..gacha_stats import classify_history_category
@@ -616,6 +788,18 @@ class StellaSoraWindow(QMainWindow):
         self._settings.set_summary(
             f"{st.total_pulls} 抽 · {st.total_five} 个五星\n{st.date_range}\n归档批次 {st.batches}")
         self._status.setText("已加载最近一次本地数据")
+
+    def _on_catalog_done(self, downloaded: int) -> None:
+        """后台把名称表换成当前服务器的语言后, 用新名称重画一次记录页。
+
+        不重画的话, 切到日服/国际服后记录里依旧是上一次语言写好的文字
+        (用户报过"切了日服记录还是中文")。
+        """
+        if self._snapshot is None:
+            return
+        self._apply_snapshot(self._snapshot)
+        extra = f"，新下载头像 {downloaded} 张" if downloaded else ""
+        self._status.setText(f"已按 {self._profile.label} 更新名称与卡池{extra}")
 
     def _set_metrics(self, st: Stats) -> None:
         self._m["累计抽取"].set_value(str(st.total_pulls))
@@ -658,14 +842,16 @@ class StellaSoraWindow(QMainWindow):
             subprocess.Popen(["xdg-open", str(self._output_dir)])
 
     def _copy_archive_path(self) -> None:
-        QApplication.clipboard().setText(str(self._output_dir / ARCHIVE_FILENAME))
+        QApplication.clipboard().setText(
+            str(accounts.active_data_dir(self._output_dir) / ARCHIVE_FILENAME))
         self._status.setText("归档路径已复制")
 
     # ---------------- UID / 分享文件 ----------------
 
     def _refresh_uid_state(self) -> None:
         """把当前生效的 UID 来源显示出来, 免得用户不知道工具记住了什么。"""
-        manual = load_manual_uid(self._output_dir)
+        data_dir = accounts.active_data_dir(self._output_dir)
+        manual = load_manual_uid(data_dir)
         learned = load_archive_uid(self._output_dir)
         uid = manual or learned
         if not uid:
@@ -682,11 +868,26 @@ class StellaSoraWindow(QMainWindow):
         if raw and not uid:
             QMessageBox.warning(self, "UID 无效", "UID 只能用数字、字母、下划线或短横线（最长 64 位）。")
             return
-        if not save_manual_uid(self._output_dir, uid):
+        current = accounts.active_account(self._output_dir)
+        # 这个 UID 已经属于另一个账号 → 不能贴到当前账号头上, 否则导出/分享文件
+        # 又会变成"名字是 A、内容是 B"(用户报过的那种"几个号合起来")
+        other = accounts.find_by_uid(self._output_dir, uid) if uid else None
+        if other is not None and (current is None or other.key != current.key):
+            QMessageBox.information(
+                self, "UID 已属于另一个账号",
+                f"UID {uid} 是账号「{other.label}」的。\n"
+                "已帮你切到那个账号；要改它的 UID 直接在这里改就行。")
+            self._switch_account(other.key)
+            return
+        # 手填的 UID 属于**当前账号**: 写进该账号的目录, 并登记到账号清单里
+        if not save_manual_uid(accounts.active_data_dir(self._output_dir), uid):
             QMessageBox.critical(self, "保存失败", "配置目录不可写，UID 没有保存。")
             return
+        if current is not None and uid:
+            accounts.set_uid(self._output_dir, current.key, uid)
         self._settings.set_uid(uid)
         self._refresh_uid_state()
+        self._refresh_account_picker()
         self._status.setText(f"UID 已保存：{uid}" if uid else "已清除手动 UID")
 
     def _read_uid_from_game(self) -> None:
@@ -716,6 +917,15 @@ class StellaSoraWindow(QMainWindow):
             return
         search = payload["search"]
         if search.found:
+            # 读到的是另一个账号的 UID → 切过去(记录/分享文件都跟着那个账号)
+            other = accounts.find_by_uid(self._output_dir, search.uid)
+            current = accounts.active_account(self._output_dir)
+            if other is not None and (current is None or other.key != current.key):
+                self._switch_account(other.key)
+                QMessageBox.information(
+                    self, "从游戏读取 UID",
+                    f"游戏里的账号是 UID {search.uid}，已切到账号「{other.label}」。")
+                return
             if save_manual_uid(self._output_dir, search.uid):
                 self._settings.set_uid(search.uid)
                 self._refresh_uid_state()
@@ -740,26 +950,18 @@ class StellaSoraWindow(QMainWindow):
         QMessageBox.information(self, "从游戏读取 UID", search.summary() + "\n\n也可以手动填写并保存。")
 
     def _export_share_file(self, text: str = "") -> None:
-        """导出一份与网页版/分享文件完全同格式的 <uid>.json。"""
-        uid = normalize_uid(text) or effective_uid(self._output_dir)
-        if not uid:
-            QMessageBox.information(
-                self, "导出发送文件",
-                "还没有 UID：先在下面填一个并点「保存 UID」，"
-                "或者导入一次带 uid 的分享文件（工具会自动记住）。")
-            return
-        categories = load_archive_categories(self._output_dir)
-        if not categories:
-            QMessageBox.information(self, "导出发送文件", "本地归档里还没有记录，请先点「刷新游戏数据」。")
-            return
+        """导出 <uid>.json —— 交给 service.export_share_for_uid 保证"名实相符"。
+
+        曾经的 bug: 文件名取输入框里的 UID、内容取当前账号的归档 —— 游戏里换了号
+        (输入框先变成新 UID, 账号还没切过去)时会导出「308423356.json 里装着
+        100872990 的 653 组」, 看起来就像几个号的记录被合到了一起。
+        """
         try:
-            path = write_share_file(self._output_dir, categories, uid)
-        except OSError as err:
-            QMessageBox.critical(self, "导出失败", str(err))
+            path = export_share_for_uid(self._output_dir, text)
+        except ValueError as err:
+            QMessageBox.information(self, "导出发送文件", str(err))
             return
-        if path is None:
-            QMessageBox.warning(self, "导出失败", "UID 不合法，未能生成分享文件。")
-            return
+        self._refresh_uid_state()
         self._status.setText(f"已导出 {path.name}")
         QMessageBox.information(self, "导出发送文件", f"已生成：\n{path}")
 
@@ -798,12 +1000,15 @@ class StellaSoraWindow(QMainWindow):
             f"已合并进本地归档（现有 {result.total_pulls} 抽 / {result.total_groups} 组）{uid_text}{share_text}")
 
     def _backup_archive(self) -> None:
-        ap = self._output_dir / ARCHIVE_FILENAME
+        data_dir = accounts.active_data_dir(self._output_dir)
+        ap = data_dir / ARCHIVE_FILENAME
         if not ap.exists():
             QMessageBox.information(self, "创建备份", "尚未找到本地招募归档,请先刷新游戏数据。")
             return
+        account = accounts.active_account(self._output_dir)
+        stamp = f"{datetime.now():%Y%m%d_%H%M%S}"
         backup_dir = self._output_dir / "backups"; backup_dir.mkdir(parents=True, exist_ok=True)
-        target = backup_dir / f"{ARCHIVE_FILENAME[:-5]}_{datetime.now():%Y%m%d_%H%M%S}.json"
+        target = backup_dir / f"{ARCHIVE_FILENAME[:-5]}_{account.key if account else 'default'}_{stamp}.json"
         try:
             shutil.copy2(ap, target)
         except OSError as e:

@@ -50,14 +50,26 @@ class HeaderCacheTests(unittest.TestCase):
     def test_find_uid_candidates_reuses_the_cache(self):
         image = LuaImage()
         image.table({"_uid": "100872990"})
-        calls = {"n": 0}
-        original = image.process.regions
-        image.process.regions = lambda: (calls.__setitem__("n", calls["n"] + 1), original())[1]
-        discovery = LuaTableDiscovery(image.process, image.lua)
+        calls = {"headers": 0, "regions": 0}
+        original_headers = image.discovery._collect_headers
+        original_regions = image.process.regions
 
-        discovery.find_uid_candidates(lambda v: True)
-        discovery.find_uid_candidates(lambda v: True, names=["_uid"])
-        self.assertEqual(calls["n"], 1)
+        def counting_headers(regions):
+            calls["headers"] += 1
+            return original_headers(regions)
+
+        def counting_regions():
+            calls["regions"] += 1
+            return original_regions()
+
+        image.discovery._collect_headers = counting_headers
+        image.process.regions = counting_regions
+
+        image.discovery.find_uid_candidates(lambda v: True)
+        image.discovery.find_uid_candidates(lambda v: True, names=["_uid"])
+
+        self.assertEqual(calls["headers"], 1, "表头全内存扫描只该真扫一次")
+        self.assertEqual(calls["regions"], 1, "regions() 也要缓存(它要遍历整个地址空间)")
 
 
 class FastPathTests(unittest.TestCase):

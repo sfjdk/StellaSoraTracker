@@ -88,6 +88,14 @@ def build_qss(p: Palette) -> str:
     QPushButton[role="filter"] {{ text-align:left; padding:10px 14px; border-radius:8px; background:transparent; color:{p.TEXT}; font-weight:600; }}
     QPushButton[role="filter"]:hover {{ background:{p.SURFACE2}; }}
     QPushButton[role="filter"]:checked {{ background:{p.PRIMARY}; color:#ffffff; border:1px solid {p.PRIMARY}; }}
+    /* 单选式按钮(游戏版本): 必须一眼看出选中了哪个 —— 之前用 ghost 没有选中样式,
+       点完界面毫无变化, 用户就会觉得"按钮没用"。 */
+    QPushButton[role="choice"] {{ background:{p.SURFACE}; color:{p.TEXT};
+        border:1px solid {p.LINE}; border-radius:8px; padding:8px 16px; font-weight:600; }}
+    QPushButton[role="choice"]:hover {{ border:1px solid {p.PRIMARY}; color:{p.PRIMARY}; }}
+    QPushButton[role="choice"]:checked {{ background:{p.PRIMARY}; color:{p.ON_PRIMARY};
+        border:1px solid {p.PRIMARY}; }}
+    QPushButton[role="choice"]:checked:hover {{ background:{p.PRIMARY2}; color:{p.ON_PRIMARY}; }}
 
     /* ---- 卡片 ---- */
     QFrame[card="true"] {{ background:{p.SURFACE}; border:1px solid {p.LINE}; border-radius:12px; }}
@@ -117,8 +125,99 @@ def build_qss(p: Palette) -> str:
     QTabBar::tab:hover {{ color:{p.TEXT}; }}
 
     QToolTip {{ background:{p.SURFACE}; color:{p.TEXT}; border:1px solid {p.LINE}; border-radius:6px; padding:4px 8px; }}
+
+    /* ---- 输入类控件 ----
+       必须显式给背景色: 只设 color 的话, Windows 深色系统主题下 Qt 会保留
+       原生黑色底, 于是"深字 + 黑底"直接看不清(QComboBox 就踩过这个坑)。 */
+    QLineEdit, QComboBox, QSpinBox, QDoubleSpinBox, QDateEdit {{
+        background:{p.SURFACE}; color:{p.TEXT};
+        border:1px solid {p.LINE}; border-radius:8px;
+        padding:8px 10px; min-height:18px;
+        selection-background-color:{p.PRIMARY}; selection-color:{p.ON_PRIMARY};
+    }}
+    QLineEdit:focus, QComboBox:focus, QSpinBox:focus, QDoubleSpinBox:focus, QDateEdit:focus {{
+        border:1px solid {p.PRIMARY};
+    }}
+    QLineEdit:disabled, QComboBox:disabled {{ color:{p.MUTED}; background:{p.SURFACE2}; }}
+    QLineEdit::placeholder {{ color:{p.MUTED}; }}
+
+    QComboBox {{ padding-right:26px; }}
+    QComboBox::drop-down {{ subcontrol-origin:padding; subcontrol-position:center right;
+        width:22px; border:none; background:transparent; }}
+    QComboBox::down-arrow {{ image:none; width:0; height:0; margin-right:8px;
+        border-left:5px solid transparent; border-right:5px solid transparent;
+        border-top:6px solid {p.MUTED}; }}
+    QComboBox:hover {{ border:1px solid {p.PRIMARY}; }}
+    /* 下拉列表(弹出窗口) —— 不设的话深色系统主题下是黑底黑字。
+       弹出列表是一个独立的顶层容器: 只写 QAbstractItemView 时容器本身仍是
+       原生背景, 所以连容器(QFrame/QListView)一起给背景。 */
+    QComboBox QAbstractItemView, QComboBox QListView, QComboBox QFrame {{
+        background:{p.SURFACE}; color:{p.TEXT};
+        border:1px solid {p.LINE}; border-radius:8px;
+        padding:4px; outline:none;
+        selection-background-color:{p.PRIMARY}; selection-color:{p.ON_PRIMARY};
+        alternate-background-color:{p.SURFACE2};
+    }}
+    QComboBox QAbstractItemView::item {{ min-height:26px; padding:4px 8px; border-radius:6px; }}
+    /* 兜底: 本项目只有 QComboBox 会用到 item view, 干脆全局给一次背景,
+       免得某些平台/主题下弹出列表又变回原生黑底。 */
+    QAbstractItemView, QListView {{
+        background:{p.SURFACE}; color:{p.TEXT};
+        border:1px solid {p.LINE}; outline:none;
+        selection-background-color:{p.PRIMARY}; selection-color:{p.ON_PRIMARY};
+        alternate-background-color:{p.SURFACE2};
+    }}
+
+    /* ---- 弹窗(输入/提示) ---- */
+    QDialog, QMessageBox, QInputDialog {{ background:{p.BG}; color:{p.TEXT}; }}
+    QMessageBox QLabel, QInputDialog QLabel {{ color:{p.TEXT}; }}
+    QMessageBox QPushButton, QInputDialog QPushButton {{
+        background:{p.SURFACE}; color:{p.TEXT}; border:1px solid {p.LINE};
+        border-radius:8px; padding:7px 16px; font-weight:600; min-width:64px;
+    }}
+    QMessageBox QPushButton:hover, QInputDialog QPushButton:hover {{ background:{p.SURFACE2}; }}
+    QMessageBox QPushButton:default, QInputDialog QPushButton:default {{
+        background:{p.PRIMARY}; color:{p.ON_PRIMARY}; border:1px solid {p.PRIMARY};
+    }}
     """
 
 
+def build_palette(p: Palette):
+    """把令牌变成 Qt 调色板。
+
+    为什么不能只靠 QSS: 下拉列表、弹窗这类"原生绘制"的部分由系统主题决定底色。
+    Windows 深色主题下, 只写 QSS 的 QComboBox 会出现"系统黑底 + 我们的深色文字"
+    —— 用户看到的就是一条看不清的黑条。显式给调色板才管得住。
+    """
+    from PySide6.QtGui import QColor, QPalette
+
+    palette = QPalette()
+    roles = {
+        QPalette.ColorRole.Window: p.BG,
+        QPalette.ColorRole.WindowText: p.TEXT,
+        QPalette.ColorRole.Base: p.SURFACE,
+        QPalette.ColorRole.AlternateBase: p.SURFACE2,
+        QPalette.ColorRole.Text: p.TEXT,
+        QPalette.ColorRole.Button: p.SURFACE,
+        QPalette.ColorRole.ButtonText: p.TEXT,
+        QPalette.ColorRole.Highlight: p.PRIMARY,
+        QPalette.ColorRole.HighlightedText: p.ON_PRIMARY,
+        QPalette.ColorRole.ToolTipBase: p.SURFACE,
+        QPalette.ColorRole.ToolTipText: p.TEXT,
+        QPalette.ColorRole.PlaceholderText: p.MUTED,
+        QPalette.ColorRole.Link: p.PRIMARY,
+    }
+    for role, color in roles.items():
+        palette.setColor(role, QColor(color))
+    for role in (QPalette.ColorRole.Text, QPalette.ColorRole.ButtonText,
+                 QPalette.ColorRole.WindowText):
+        palette.setColor(QPalette.ColorGroup.Disabled, role, QColor(p.MUTED))
+    return palette
+
+
 def apply_theme(app) -> None:
-    app.setStyleSheet(build_qss(get_palette()))
+    palette = get_palette()
+    # Fusion 才完全听调色板的话; Windows 原生样式在深色系统主题下会自己画黑底
+    app.setStyle("Fusion")
+    app.setPalette(build_palette(palette))
+    app.setStyleSheet(build_qss(palette))

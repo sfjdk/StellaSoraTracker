@@ -137,7 +137,9 @@ class AutoExportTests(unittest.TestCase):
             self.assertIsNone(service.refresh_share_file(directory))       # 没记录
             service._write_archive(directory, self._CATEGORIES)            # 有记录但没 UID
             self.assertIsNone(service.refresh_share_file(directory))
-            self.assertEqual([p.name for p in directory.iterdir()], [service.ARCHIVE_FILENAME])
+            # 只会有账号清单这类记账文件, 不该产出 <数字>.json 分享文件
+            shares = [p.name for p in directory.rglob("*.json") if p.stem.isdigit()]
+            self.assertEqual(shares, [])
 
     def test_auto_export_rewrites_a_stale_file(self):
         with temp_workdir("auto_stale") as directory:

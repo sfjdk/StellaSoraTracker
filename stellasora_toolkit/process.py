@@ -213,10 +213,21 @@ class RemoteProcess:
         return struct.unpack(fmt, self.read(address, struct.calcsize(fmt)))
 
     def scan(self, pattern: bytes, regions: Iterator[MemoryRegion] | None = None) -> Iterator[int]:
-        if not pattern:
+        for address, _pattern in self.scan_any([pattern], regions):
+            yield address
+
+    def scan_any(self, patterns: Iterable[bytes],
+                 regions: Iterator[MemoryRegion] | None = None) -> Iterator[tuple[int, bytes]]:
+        """一次遍历内存找多个 pattern, 命中处产出 (地址, 命中的 pattern)。
+
+        多个 pattern 各扫一遍会把读取量成倍放大(UID 探测就因此很慢): 这里同样按
+        4MB 分块, 但每块只读一次, 块内把所有 pattern 找完。
+        """
+        wanted = [pattern for pattern in patterns if pattern]
+        if not wanted:
             return
         chunk_size = 4 * 1024 * 1024
-        overlap = len(pattern) - 1
+        overlap = max(len(pattern) for pattern in wanted) - 1
         for region in regions or iter(self.regions()):
             offset = 0
             tail = b""
@@ -228,13 +239,15 @@ class RemoteProcess:
                     tail = b""
                     continue
                 data = tail + block
-                search_from = 0
-                while True:
-                    found = data.find(pattern, search_from)
-                    if found < 0:
-                        break
-                    yield region.base + offset - len(tail) + found
-                    search_from = found + 1
+                origin = region.base + offset - len(tail)
+                for pattern in wanted:
+                    search_from = 0
+                    while True:
+                        found = data.find(pattern, search_from)
+                        if found < 0:
+                            break
+                        yield origin + found, pattern
+                        search_from = found + 1
                 tail = data[-overlap:] if overlap else b""
                 offset += take
 

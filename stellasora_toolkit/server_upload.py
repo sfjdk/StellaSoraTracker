@@ -165,13 +165,15 @@ def delete_account(server_url: str, token: str, password: str) -> dict:
 # -- 本地归档 ---------------------------------------------------------------
 
 def read_archive(output_dir: Path) -> dict:
-    """读本地归档里的 categories。
+    """读**当前账号**归档里的 categories。
 
     ⚠️ 上传的是【归档】而不是本次读取的快照：归档是与历史合并后的完整数据，
     而 snapshot.gacha_categories 只有本次读到的部分。用后者会把服务器上
     更早的历史越传越少。
     """
-    path = Path(output_dir) / ARCHIVE_FILENAME
+    from .service import active_data_dir  # 延迟导入: 避免 service ←→ server_upload 循环
+
+    path = Path(active_data_dir(Path(output_dir))) / ARCHIVE_FILENAME
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError) as err:

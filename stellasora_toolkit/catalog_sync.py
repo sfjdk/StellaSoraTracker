@@ -99,10 +99,12 @@ def _load_catalog_cache(path: Path | None) -> list[dict]:
 
 
 def _fetch_five_star_catalog(progress: ProgressCallback | None = None) -> list[dict]:
-    """拉取 characters + discs, 只保留五星。返回条目: id/kind/name/icon(相对路径)。
+    """拉取 characters + discs, 返回条目: id/kind/name/icon/rarity/five_star。
 
-    lang 取当前激活版本(server_config), 因此注册进名称表的名称语言与游戏一致。
-    那一路查询失败时记进 fetch_failures() —— 空的目录不代表"没有新五星"。
+    名字虽然是历史命名, 但**现在返回全部稀有度** —— 只注册五星的话, 四星记录
+    永远显示内置的中文名, 切到日服/国际服时那部分记录就还是中文(用户报过这个)。
+    语言取当前激活版本(server_config.api_lang()), 所以名称语言与游戏一致;
+    头像只给五星下载(see _sync_once), 判五星只看 rarity。
     """
     global _fetch_failures
     items: list[dict] = []
@@ -134,9 +136,6 @@ def _fetch_five_star_catalog(progress: ProgressCallback | None = None) -> list[d
                 continue
             icon = str(row.get("icon") or "")
             portrait = str(row.get("portrait") or "")
-            # icon(圆形小图标)优先, 缺失时回退 portrait(半身立绘), 两者都没有才丢弃
-            if rarity < 5:
-                continue
             # BOSS/剧情单位(魔侍巨像等)在角色接口里也是 grade=5, 但抽不到, 不能注册
             if not is_gacha_item(item_id):
                 continue
@@ -147,6 +146,8 @@ def _fetch_five_star_catalog(progress: ProgressCallback | None = None) -> list[d
                 "kind": kind,
                 "name": str(row.get("name") or f"{kind} #{item_id}"),
                 "icon": icon or portrait,
+                "rarity": rarity,
+                "five_star": rarity >= 5,
             })
     return items
 
@@ -306,10 +307,10 @@ def _sync_once(
             progress("记录的序号都已认识，跳过在线查询")
         fetched: list[dict] = []
         failures = 0
-        audit_before = audit_alignment(fetched, ids)
+        audit_before = audit_alignment([], ids)
     else:
         if progress:
-            progress("正在查询五星目录...")
+            progress("正在查询名称目录...")
         fetched = _fetch_five_star_catalog(progress)
         failures = fetch_failures()
     if fetched:
@@ -322,9 +323,10 @@ def _sync_once(
             fetched = cached
             from_cache = True
             if progress:
-                progress(f"在线查询失败，改用上次缓存的五星目录（{len(cached)} 项）")
+                progress(f"在线查询失败，改用上次缓存的目录（{len(cached)} 项）")
     if not skip_online:
-        audit_before = audit_alignment(fetched, ids)
+        # 对齐校验只吃五星, 否则四星会被当成"星级错位"
+        audit_before = audit_alignment([it for it in fetched if it.get("five_star", True)], ids)
 
     names_by_kind = {"traveler": TRAVELER_NAMES, "disc": DISC_NAMES}
     missing_before = [dict(it) for it in fetched if it["id"] not in names_by_kind[it["kind"]]]
@@ -335,16 +337,19 @@ def _sync_once(
     appeared: list[dict] = []
     for item in fetched:
         item_id, kind = item["id"], item["kind"]
+        five_star = bool(item.get("five_star", True))
         is_new = item_id not in seen
         seen.add(item_id)
         was_missing = item_id not in names_by_kind[kind]
-        # 名称始终以本版 API 语言覆盖注册: 切换国服/国际服后, 下一次同步即换语言
-        # (同语言重复写入为幂等操作); 报告里的 "registered" 仍只统计真正缺失的条目。
-        register_gacha_resource(item_id, kind, item["name"], rarity=5)
+        # 名称始终以本版 API 语言覆盖注册(含四星): 切到日服/国际服后所有记录都换语言;
+        # 同语言重复写入是幂等操作, 报告里的 "registered" 只统计真正缺失的条目。
+        register_gacha_resource(item_id, kind, item["name"], rarity=item.get("rarity", 5))
         if was_missing:
             registered.append(dict(item))
-            if is_new:
-                appeared.append(dict(item))
+            if is_new and five_star:
+                appeared.append(dict(item))       # "发现新五星"提示只报五星
+        if not five_star:
+            continue                              # 头像只补五星, 四星没有独立立绘需求
         # 图片自动补全: 与注册解耦 —— 名称已注册但本地缺 PNG 的五星同样会下载,
         # 已存在(如游戏内提取/内置打包)则记入 existing, 不重复下载。
         target = asset_root() / ("travelers" if kind == "traveler" else "discs") / f"{item_id}.png"
@@ -356,11 +361,14 @@ def _sync_once(
         else:
             icon_failed.append(dict(item))
     _save_seen(state_path, seen)
-    audit_after = audit_alignment(fetched, ids)
+    # 对齐校验只针对五星: 四星本来就不是五星, 混进去会全被算成"星级错位"
+    five_star_items = [item for item in fetched if item.get("five_star", True)]
+    audit_after = audit_alignment(five_star_items, ids)
     return {
-        "fetched_total": len(fetched),
-        "fetched_travelers": sum(1 for it in fetched if it["kind"] == "traveler"),
-        "fetched_discs": sum(1 for it in fetched if it["kind"] == "disc"),
+        "fetched_total": len(five_star_items),
+        "fetched_travelers": sum(1 for it in five_star_items if it["kind"] == "traveler"),
+        "fetched_discs": sum(1 for it in five_star_items if it["kind"] == "disc"),
+        "named_total": len(fetched),
         "record_count": len(ids),
         "skipped_online": skip_online,
         "fetch_failed": failures,

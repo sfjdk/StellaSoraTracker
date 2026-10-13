@@ -21,6 +21,8 @@ class LuaTableDiscovery:
         # 表头扫描是全内存遍历里最贵的一步: 一次 discovery 内缓存复用(同一次读取里
         # 内存不会变), 免得 UID 探测和招募数据定位各扫一遍。
         self._headers: list[tuple[int, int, int, int]] | None = None
+        # regions() 要遍历整个地址空间(VirtualQueryEx), 一次 discovery 内也只算一次
+        self._scan_regions: list[MemoryRegion] | None = None
 
     def _find_tstrings(self, text: str) -> list[int]:
         encoded = text.encode("utf-8")
@@ -53,39 +55,52 @@ class LuaTableDiscovery:
         low, high = max(0, address - radius), address + radius
         return [region for region in regions if region.end > low and region.base < high]
 
-    def _uid_like_string_objects(self, limit: int = 12) -> list[tuple[str, int]]:
+    def _scan_many(self, needles: list[bytes]) -> Iterable[tuple[int, bytes]]:
+        """一次遍历找多个 pattern; 后端没有 scan_any(如安卓)时退回逐个扫描。"""
+        scan_any = getattr(self.process, "scan_any", None)
+        if scan_any is not None:
+            yield from scan_any(needles, self._scannable_regions())
+            return
+        regions = self._scannable_regions()
+        for needle in needles:
+            for address in self.process.scan(needle, regions):
+                yield address, needle
+
+    def _uid_like_string_objects(self, limit: int = 6) -> list[tuple[str, int]]:
         """扫描内存, 找出"名字里带 uid"的短字符串对象 → [(名字, 字符串对象地址)]。
 
         这里不写死字段名: 游戏里叫 _uid / _sUid / _roleUid 都能命中, 只要求
         名字含 uid(不分大小写)、是纯标识符、长度合理。名字短的优先(更像主字段)。
+
+        性能: 三种大小写写法用**一次**遍历一起找(以前三种各扫一遍), 且只保留最像的
+        前 limit 个 —— 每多一个候选就多一遍"找引用该字符串的指针"的遍历。
         """
         found: dict[str, int] = {}
-        for needle in ("uid", "UID", "Uid"):
-            encoded = needle.encode("ascii")
-            for hit in self.process.scan(encoded):
-                # 命中点可能在名字中间("_uid" 的 "uid" 在第 2 个字符), 所以要往回
-                # 退几个字节去找真正的字符串对象头; 退多少由对象头里的长度决定。
-                for back in range(0, 9):
-                    object_address = hit - 24 - back
-                    header = self.process.try_read(object_address, 24)
-                    if header is None or header[8] != 4:      # 只认短字符串
-                        continue
-                    length = header[11]
-                    if not 2 <= length <= 32 or back + len(encoded) > length:
-                        continue
-                    raw = self.process.try_read(object_address + 24, length)
-                    if raw is None:
-                        continue
-                    try:
-                        name = raw.decode("ascii")
-                    except UnicodeDecodeError:
-                        continue
-                    if name[back:back + len(encoded)] != needle:
-                        continue
-                    if "uid" not in name.lower() or not name.replace("_", "").isalnum():
-                        continue
-                    found.setdefault(name, object_address)
-                    break
+        needles = [b"uid", b"UID", b"Uid"]
+        for hit, needle in self._scan_many(needles):
+            # 命中点可能在名字中间("_uid" 的 "uid" 在第 2 个字符), 所以要往回
+            # 退几个字节去找真正的字符串对象头; 退多少由对象头里的长度决定。
+            for back in range(0, 9):
+                object_address = hit - 24 - back
+                header = self.process.try_read(object_address, 24)
+                if header is None or header[8] != 4:      # 只认短字符串
+                    continue
+                length = header[11]
+                if not 2 <= length <= 32 or back + len(needle) > length:
+                    continue
+                raw = self.process.try_read(object_address + 24, length)
+                if raw is None:
+                    continue
+                try:
+                    name = raw.decode("ascii")
+                except UnicodeDecodeError:
+                    continue
+                if name[back:back + len(needle)] != needle.decode("ascii"):
+                    continue
+                if "uid" not in name.lower() or not name.replace("_", "").isalnum():
+                    continue
+                found.setdefault(name, object_address)
+                break
         ordered = sorted(found.items(), key=lambda item: (len(item[0]), item[0]))
         return ordered[:limit]
 
@@ -188,17 +203,17 @@ class LuaTableDiscovery:
         return self._headers
 
     def _scannable_regions(self) -> list[MemoryRegion]:
-        """优先只扫堆(排除几百 MB 的模块映像); 一个表头都没扫到时退回全部区域。
+        """优先只扫堆(排除几百 MB 的模块映像); 结果缓存, regions() 本身也很贵。
 
         Lua 表/字符串都在 MEM_PRIVATE 堆上, 模块映像里不可能有 —— 这一步能省掉
-        相当一部分读取量。但为了不因为平台差异(某些环境不填 Type)而漏掉数据,
-        过滤后一无所获时会用全部区域重扫一次。
+        相当一部分读取量。为了不因为平台差异(某些环境不填 Type)而漏掉数据,
+        过滤后一无所获时调用方会用全部区域重扫。
         """
-        regions = self.process.regions()
-        heap = [region for region in regions if not region.is_image]
-        if heap and len(heap) < len(regions):
-            return heap
-        return regions
+        if self._scan_regions is None:
+            regions = self.process.regions()
+            heap = [region for region in regions if not region.is_image]
+            self._scan_regions = heap if heap and len(heap) < len(regions) else regions
+        return self._scan_regions
 
     def _scan_table_headers_uncached(self) -> list[tuple[int, int, int, int]]:
         """一次全内存扫描, 收集所有 8 对齐、tt_==5 的表头。

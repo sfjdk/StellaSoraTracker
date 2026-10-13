@@ -40,7 +40,8 @@ class FakeProcess:
     def is_readable(self, address, size=1):
         return self.base <= address and address + size <= self.base + len(self.data)
 
-    def scan(self, needle):
+    def scan(self, needle, regions=None):
+        """regions 参数与 RemoteProcess.scan 对齐(单区间假内存里忽略它)。"""
         hits, start = [], 0
         while True:
             index = self.data.find(needle, start)
@@ -51,6 +52,12 @@ class FakeProcess:
 
     def regions(self):
         return [MemoryRegion(base=self.base, size=len(self.data))]
+
+    def scan_any(self, needles, regions=None):
+        """一次遍历找多个 pattern —— 与 RemoteProcess.scan_any 同语义。"""
+        for needle in needles:
+            for address in self.scan(needle):
+                yield address, needle
 
 
 class LuaImage:

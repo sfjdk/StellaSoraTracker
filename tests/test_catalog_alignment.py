@@ -128,9 +128,13 @@ class KnownFiveStarRegressionTests(unittest.TestCase):
 
 
 class SyncCatalogFilterTests(unittest.TestCase):
-    """联网同步的过滤口径(离线, 直接喂假响应)。"""
+    """联网同步的过滤口径(离线, 直接喂假响应)。
 
-    def test_sync_keeps_gacha_five_stars_and_drops_boss_units(self):
+    名称目录现在返回**全部稀有度**(四星也要按当前语言显示), 所以这里断言:
+    四星保留并标记 five_star=False, BOSS 单位仍然丢掉。
+    """
+
+    def test_sync_keeps_gacha_items_and_drops_boss_units(self):
         payloads = {
             "characters?lang=cn": [
                 {"id": 137, "name": "埃莉诺", "grade": 5, "icon": "/stella/assets/Eleanor.png"},
@@ -153,7 +157,13 @@ class SyncCatalogFilterTests(unittest.TestCase):
         with mock.patch.object(catalog_sync, "_read_url", fake_read):
             items = catalog_sync._fetch_five_star_catalog()
 
-        self.assertEqual({item["id"] for item in items}, {137, 139, 214062})
+        by_id = {item["id"]: item for item in items}
+        self.assertEqual(sorted(by_id), [103, 137, 139, 213026, 214062],
+                         "四星也要注册名称, BOSS 要丢掉")
+        self.assertTrue(by_id[137]["five_star"])
+        self.assertTrue(by_id[214062]["five_star"])
+        self.assertFalse(by_id[103]["five_star"])
+        self.assertFalse(by_id[213026]["five_star"])
         self.assertTrue(all(item["icon"].startswith("/stella/assets/") for item in items))
 
 

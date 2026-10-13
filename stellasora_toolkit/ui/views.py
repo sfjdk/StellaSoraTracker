@@ -7,9 +7,9 @@ from datetime import datetime
 from pathlib import Path
 
 from PySide6.QtCore import Qt, QRectF
-from PySide6.QtGui import QColor, QPainter
+from PySide6.QtGui import QColor, QPainter, QPalette
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QFrame, QLabel, QLineEdit,
+    QWidget, QVBoxLayout, QHBoxLayout, QFrame, QLabel, QLineEdit, QComboBox,
     QScrollArea, QPushButton, QButtonGroup, QSizePolicy, QTabWidget, QProgressBar,
 )
 
@@ -205,6 +205,37 @@ class RecordsView(QWidget):
             c = Card(); c.add(mk_label("当前范围内暂无五星记录。", role="muted")); self._content_col.addWidget(c)
 
 
+def _style_combo_popup(combo) -> None:
+    """把下拉列表(独立弹出窗口)刷成"主题底色 + 主题字色"。
+
+    弹出列表是单独的顶层窗口, 只写 QSS 时它常常还沿用系统主题的原生底色 ——
+    Windows 深色主题下就是"黑底 + 深色字", 完全看不清(用户报过)。这里三管齐下:
+    调色板 + autoFillBackground + 直接给这个控件挂一条局部样式, 保证浅色主题下
+    就是白底黑字。
+    """
+    colors = get_palette()
+    view = combo.view()
+    palette = view.palette()
+    palette.setColor(QPalette.ColorRole.Base, QColor(colors.SURFACE))
+    palette.setColor(QPalette.ColorRole.Text, QColor(colors.TEXT))
+    palette.setColor(QPalette.ColorRole.Window, QColor(colors.SURFACE))
+    palette.setColor(QPalette.ColorRole.WindowText, QColor(colors.TEXT))
+    palette.setColor(QPalette.ColorRole.Highlight, QColor(colors.PRIMARY))
+    palette.setColor(QPalette.ColorRole.HighlightedText, QColor(colors.ON_PRIMARY))
+    view.setPalette(palette)
+    view.setAutoFillBackground(True)
+    local = (f"background:{colors.SURFACE}; color:{colors.TEXT};"
+             f"border:1px solid {colors.LINE}; outline:none;"
+             f"selection-background-color:{colors.PRIMARY};"
+             f"selection-color:{colors.ON_PRIMARY};")
+    view.setStyleSheet(local)
+    # 弹出窗口的"外框"(容器)也要一起刷, 否则边框那圈还是原生底色
+    window = view.window()
+    if window is not None and window is not view:
+        window.setStyleSheet(local)
+        window.setAutoFillBackground(True)
+
+
 class SettingsView(QWidget):
     def __init__(self, callbacks: dict, parent=None):
         super().__init__(parent)
@@ -220,28 +251,35 @@ class SettingsView(QWidget):
         clear_layout(self._col)
         self._col.addWidget(mk_label("设置", role="h1"))
         self._col.addWidget(mk_label("导入、管理本地归档与软件版本", role="muted"))
-        # 游戏版本(国服/国际服): 决定读取的客户端进程名与卡池/角色名称语言
+        # 游戏版本(国服/国际服/日服): 决定读取的客户端进程名与卡池/角色名称语言
         from .. import server_config
         c0 = Card()
         c0.add(mk_label("游戏版本", role="h2"))
         c0.add(mk_label(
-            "选择所玩的服务器: 客户端进程名与名称语言(卡池/角色/UP 判定)会自动切换。\n"
-            "已有名称在下次刷新数据时按所选语言重新补全(离线时保持上次语言)。",
+            "国际服与日服共用 StellaSora.exe, 进程名分不出来 —— 工具会看游戏内存里加载的是哪种语言"
+            "(角色/秘纹名)自动识别。\n"
+            "也可以在这里手动指定: 点了以后就以你的选择为准, 自动识别不再覆盖; "
+            "想交回自动识别就点「自动识别」。\n"
+            "名称语言(卡池/角色/UP 判定)按生效的版本显示, 切换后会自动重新补全并重画记录页。",
             role="muted"))
         row = QHBoxLayout(); row.setSpacing(8)
         group = QButtonGroup(self); group.setExclusive(True)
         current = server_config.active()
         self._server_buttons: dict[str, QPushButton] = {}
         for _key, prof in server_config.PROFILES.items():
-            b = self._btn(f"{prof.label} · {prof.client_names[0]}", "ghost",
+            b = self._btn(f"{prof.label} · {prof.client_names[0]}", "choice",
                           lambda k=_key: self._cb.get("server_changed", lambda _: None)(k))
             b.setCheckable(True)
             b.setChecked(_key == current.key)
             group.addButton(b)
             self._server_buttons[_key] = b
             row.addWidget(b)
+        row.addWidget(self._btn("自动识别", "ghost",
+                                lambda: self._cb.get("server_auto", lambda: None)()))
         row.addStretch(1)
         c0.add(_hbox(row))
+        self._server_state = mk_label("", role="muted")
+        c0.add(self._server_state)
         self._col.addWidget(c0)
         # 本地归档
         c1 = Card()
@@ -262,6 +300,27 @@ class SettingsView(QWidget):
         self._summary = mk_label(summary, role="body")
         c2.add(self._summary)
         self._col.addWidget(c2)
+        # 账号(多账号: 每个 UID 一份归档, 互不混算)
+        c4 = Card()
+        c4.add(mk_label("账号", role="h2"))
+        c4.add(mk_label(
+            "每个账号(UID)有自己独立的记录与垫抽 —— 切账号就会切到那份归档。\n"
+            "游戏里换了账号后点「刷新游戏数据」, 工具会按读到的 UID 自动切过去(没有就新建)。",
+            role="muted"))
+        self._account_pick = QComboBox()
+        self._account_pick.currentIndexChanged.connect(self._on_account_pick)
+        _style_combo_popup(self._account_pick)
+        c4.add(self._account_pick)
+        rowa = QHBoxLayout(); rowa.setSpacing(8)
+        rowa.addWidget(self._btn("新建账号", "ghost", lambda: self._cb["account_new"]()))
+        rowa.addWidget(self._btn("重命名", "ghost", lambda: self._cb["account_rename"](self._picked_key())))
+        rowa.addWidget(self._btn("合并到…", "ghost", lambda: self._cb["account_merge"](self._picked_key())))
+        rowa.addWidget(self._btn("删除", "ghost", lambda: self._cb["account_remove"](self._picked_key())))
+        rowa.addStretch(1)
+        c4.add(_hbox(rowa))
+        self._account_state = mk_label("", role="muted")
+        c4.add(self._account_state)
+        self._col.addWidget(c4)
         # UID 与分享文件
         c3 = Card()
         c3.add(mk_label("UID 与分享文件", role="h2"))
@@ -289,6 +348,35 @@ class SettingsView(QWidget):
         if hasattr(self, "_uid"):
             self._uid.setText(uid or "")
 
+    def set_accounts(self, accounts: list[tuple[str, str]], active_key: str) -> None:
+        """刷新账号下拉框: accounts = [(key, 显示名), ...]。"""
+        if not hasattr(self, "_account_pick"):
+            return
+        blocked = self._account_pick.blockSignals(True)
+        self._account_pick.clear()
+        for key, label in accounts:
+            self._account_pick.addItem(label, key)
+        index = self._account_pick.findData(active_key)
+        if index >= 0:
+            self._account_pick.setCurrentIndex(index)
+        self._account_pick.blockSignals(blocked)
+
+    def set_account_state(self, text: str) -> None:
+        if hasattr(self, "_account_state"):
+            self._account_state.setText(text)
+
+    def _picked_key(self) -> str:
+        if not hasattr(self, "_account_pick"):
+            return ""
+        data = self._account_pick.currentData()
+        return str(data or "")
+
+    def _on_account_pick(self, _index: int) -> None:
+        """下拉框换账号 = 切到那份归档(不弹确认, 列表里点一下就该生效)。"""
+        key = self._picked_key()
+        if key:
+            self._cb["account_switch"](key)
+
     def set_uid_state(self, text: str) -> None:
         if hasattr(self, "_uid_state"):
             self._uid_state.setText(text)
@@ -308,6 +396,11 @@ class SettingsView(QWidget):
         current = server_config.active().key
         for key, b in getattr(self, "_server_buttons", {}).items():
             b.setChecked(key == current)
+
+    def set_server_state(self, text: str) -> None:
+        """当前版本的来源(手动指定 / 自动识别)与生效语言。"""
+        if hasattr(self, "_server_state"):
+            self._server_state.setText(text)
 
     def set_summary(self, summary: str) -> None:
         if hasattr(self, "_summary"):
