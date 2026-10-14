@@ -1,8 +1,11 @@
 $ErrorActionPreference = "Stop"
 $projectRoot = Split-Path -Parent $MyInvocation.MyCommand.Path
 $bundledPython = Join-Path $env:USERPROFILE ".cache\codex-runtimes\codex-primary-runtime\dependencies\python\python.exe"
+$projectPython = Join-Path $projectRoot '.venv\Scripts\python.exe'
 
-if (Get-Command python -ErrorAction SilentlyContinue) {
+if (Test-Path -LiteralPath $projectPython) {
+    $python = $projectPython
+} elseif (Get-Command python -ErrorAction SilentlyContinue) {
     $python = (Get-Command python).Source
 } elseif (Test-Path -LiteralPath $bundledPython) {
     $python = $bundledPython

@@ -35,6 +35,8 @@ def build_parser() -> argparse.ArgumentParser:
     default_root = Path(sys.executable).resolve().parent if getattr(sys, "frozen", False) else Path.cwd()
     parser.add_argument("--output", type=Path, default=default_root / "exports")
     parser.add_argument("--dark", action="store_true", help="深色模式")
+    parser.add_argument("--beta", choices=("orbit", "sky", "journal"), help="UI Beta 风格")
+    parser.add_argument("--demo", action="store_true", help="仅在内存中展示演示记录，不读取游戏或写入归档")
     parser.add_argument("--smoke-test", action="store_true", help=argparse.SUPPRESS)
     return parser
 
@@ -68,7 +70,15 @@ def main(argv: list[str] | None = None) -> int:
     if not _ensure_admin():
         return 0  # 已请求提权重启, 原实例退出
     from .ui.window import run
-    return run(args.output.resolve(), dark=args.dark)
+    return run(args.output.resolve(), dark=args.dark, variant=args.beta, demo=args.demo)
+
+
+def __getattr__(name):
+    # Preserve the original import used by test_gui without eagerly loading Qt for CLI use.
+    if name == "StellaSoraApp":
+        from .ui.window import StellaSoraApp
+        return StellaSoraApp
+    raise AttributeError(name)
 
 
 if __name__ == "__main__":

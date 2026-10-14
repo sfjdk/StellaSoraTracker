@@ -235,7 +235,7 @@ class AvatarLabel(QLabel):
             from PIL import Image, ImageOps
             from PySide6.QtGui import QImage
             im = Image.open(path).convert("RGBA")
-            size = 52
+            size = 160
             im = ImageOps.fit(im, (size - 6, size - 6), method=Image.Resampling.LANCZOS)
             buf = BytesIO(); im.save(buf, "PNG")
             qimg = QImage.fromData(buf.getvalue(), "PNG")

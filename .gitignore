@@ -10,3 +10,5 @@ release/
 !StellaSoraUpdater.spec
 *.exe
 .gitee-token
+ui-beta/*.log
+sites/

@@ -42,10 +42,12 @@ class PaletteDark(Palette):
     LINE     = "#33383d"
 
 
-_cached: dict | None = {"dark": False, "pal": Palette}
+_cached: dict | None = {"dark": False, "pal": None}
 
 
 def get_palette() -> Palette:
+    if _cached["pal"] is not None:
+        return _cached["pal"]
     if _cached["dark"]:
         return PaletteDark()
     return Palette()
@@ -53,6 +55,11 @@ def get_palette() -> Palette:
 
 def set_dark(dark: bool) -> None:
     _cached["dark"] = dark
+    _cached["pal"] = None
+
+
+def set_palette(palette: Palette) -> None:
+    _cached["pal"] = palette
 
 
 def is_dark() -> bool:
