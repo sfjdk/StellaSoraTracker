@@ -177,7 +177,7 @@ def read_archive(output_dir: Path) -> dict:
     try:
         payload = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError) as err:
-        raise UploadError("读不到本地归档，请先点「刷新游戏数据」读取一次") from err
+        raise UploadError("读不到本地归档，请先点「抓取抽卡记录」读取一次") from err
     if not isinstance(payload, dict):
         raise UploadError("本地归档格式不对")
     categories = payload.get("categories")

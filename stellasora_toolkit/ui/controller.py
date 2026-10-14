@@ -188,7 +188,7 @@ class StellaSoraWindow(QMainWindow):
             more = f" 等 {len(appeared)} 项" if len(appeared) > 6 else ""
             self._bridge.notify.emit(
                 "info", "检测到新五星角色",
-                f"已自动检测到新五星: {names}{more}\n头像下载 {len(downloaded)} 张, 刷新游戏数据后生效。",
+                f"已自动检测到新五星: {names}{more}\n头像下载 {len(downloaded)} 张, 抓取抽卡记录后生效。",
             )
         # 语言切换后名称表被重新写入, 界面必须重画一次, 否则记录里还是旧语言的文字
         self._bridge.catalog_done.emit(len(downloaded))
@@ -293,7 +293,7 @@ class StellaSoraWindow(QMainWindow):
         lay.addStretch(1)
         self._btn_import = self._hbtn("导入数据", "header-action", self._import_data)
         self._btn_open = self._hbtn("打开导出目录", "header-action", self._open_exports)
-        self._btn_refresh = self._hbtn("刷新游戏数据", "primary", self.refresh)
+        self._btn_refresh = self._hbtn("抓取抽卡记录", "primary", self.refresh)
         lay.addWidget(self._btn_import); lay.addWidget(self._btn_open); lay.addWidget(self._btn_refresh)
         return header
 
@@ -335,7 +335,7 @@ class StellaSoraWindow(QMainWindow):
         self._status.setText("已加载最近一次本地数据")
 
     def refresh(self) -> None:
-        """刷新游戏数据 = 读取快照 + 资源库同步(查询缺失/自动补全/对齐校验)。
+        """抓取抽卡记录 = 读取快照 + 资源库同步(查询缺失/自动补全/对齐校验)。
 
         版本规则: 一个客户端在运行 → 自动读取; 两个客户端同时运行 → 弹窗手动选择。
         同步无任何缺失/补全时不弹窗, 只有发现新五星、缺图补全或未对齐项才提示。
@@ -371,7 +371,7 @@ class StellaSoraWindow(QMainWindow):
                 record_ids = [int(i) for g in snap.gacha for i in table_values(g.get("Ids"))]
                 report = sync_with_report(
                     self._output_dir / "catalog_sync_state.json", record_ids,
-                    progress=lambda msg: self._bridge.progress.emit(f"刷新游戏数据 · {msg}"),
+                    progress=lambda msg: self._bridge.progress.emit(f"抓取抽卡记录 · {msg}"),
                 )
             except Exception as err:
                 report = {"error": str(err)}
@@ -385,15 +385,15 @@ class StellaSoraWindow(QMainWindow):
         self._set_busy(False)
         if report.get("error"):
             self._status.setText("资源库同步失败")
-            QMessageBox.warning(self, "刷新游戏数据", f"资源库同步失败:\n{report['error']}\n\n已退回内置清单。")
+            QMessageBox.warning(self, "抓取抽卡记录", f"资源库同步失败:\n{report['error']}\n\n已退回内置清单。")
             return
         # 一路都没查到 ≠ 没有缺失: 以前这里会显示"资源库无缺失", 让人以为自动更新是好的
         if report.get("fetch_failed") and not report.get("catalog_from_cache"):
             self._status.setText("资源库同步失败(五星目录查询超时)")
             QMessageBox.warning(
-                self, "刷新游戏数据",
+                self, "抓取抽卡记录",
                 "五星目录在线查询失败（网络超时或被拦截），本次没有更新角色名称和头像。\n\n"
-                "抽卡记录本身已经保存好了；稍后再点一次「刷新游戏数据」即可补全。")
+                "抽卡记录本身已经保存好了；稍后再点一次「抓取抽卡记录」即可补全。")
             return
         text, problems = _format_sync_report(report)
         if report.get("skipped_online"):
@@ -409,9 +409,9 @@ class StellaSoraWindow(QMainWindow):
             return
         self._status.setText(f"刷新完成 · 发现缺失 {len(report['missing_before'])} 项")
         if problems:
-            QMessageBox.warning(self, "刷新游戏数据(有未对齐项)", text)
+            QMessageBox.warning(self, "抓取抽卡记录(有未对齐项)", text)
         else:
-            QMessageBox.information(self, "刷新游戏数据", f"发现新资源, 已自动补全:\n\n{text}")
+            QMessageBox.information(self, "抓取抽卡记录", f"发现新资源, 已自动补全:\n\n{text}")
 
     def _set_busy(self, busy: bool) -> None:
         self._busy = busy
@@ -725,7 +725,7 @@ class StellaSoraWindow(QMainWindow):
                        "在上面的下拉框选它即可切回。")
             QMessageBox.information(self, "新建账号",
                                     f"已新建账号 {account.label}（还没有记录）。{tip}\n\n"
-                                    "提示: 一般不需要手动新建 —— 游戏里换账号后点「刷新游戏数据」，"
+                                    "提示: 一般不需要手动新建 —— 游戏里换账号后点「抓取抽卡记录」，"
                                     "工具会按读到的 UID 自动建号并切过去。")
 
     def _rename_account(self, key: str) -> None:
@@ -1003,7 +1003,7 @@ class StellaSoraWindow(QMainWindow):
         data_dir = accounts.active_data_dir(self._output_dir)
         ap = data_dir / ARCHIVE_FILENAME
         if not ap.exists():
-            QMessageBox.information(self, "创建备份", "尚未找到本地招募归档,请先刷新游戏数据。")
+            QMessageBox.information(self, "创建备份", "尚未找到本地招募归档,请先抓取抽卡记录。")
             return
         account = accounts.active_account(self._output_dir)
         stamp = f"{datetime.now():%Y%m%d_%H%M%S}"
@@ -1061,7 +1061,7 @@ def _format_sync_report(report: dict) -> tuple[str, list[str]]:
             f" / ID 冲突 {c1}{' ✔' if c1 == 0 else ' ✘'}"
         )
     else:
-        align = f"暂无本地抽卡记录(回显校验将在刷新游戏数据后进行) / 五星判定错位 {m0}→{m1} ✔ / ID 冲突 {c1} ✔"
+        align = f"暂无本地抽卡记录(回显校验将在抓取抽卡记录后进行) / 五星判定错位 {m0}→{m1} ✔ / ID 冲突 {c1} ✔"
 
     problems: list[str] = []
     if after["unresolved"]:

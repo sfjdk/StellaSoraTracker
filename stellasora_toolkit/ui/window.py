@@ -374,7 +374,7 @@ class StellaSoraApp(BusinessWindow):
         self.mode_button = button('演示 · 切换本地' if self.demo else '本地 · 预览演示',self.toggle_demo,'ghost')
         self.mode_button.setToolTip('演示数据仅用于 UI 预览；切换后可读取自己的本地归档。')
         row.addWidget(self.mode_button)
-        self.refresh_button = button('刷新游戏数据',self.refresh,'primary')
+        self.refresh_button = button('抓取抽卡记录',self.refresh,'primary')
         self.refresh_button.setIcon(icon('refresh',p.ON_PRIMARY))
         row.addWidget(self.refresh_button)
         outer.addLayout(row)

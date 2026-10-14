@@ -306,7 +306,7 @@ class SettingsView(QWidget):
         c4.add(mk_label("账号", role="h2"))
         c4.add(mk_label(
             "每个账号(UID)有自己独立的记录与垫抽 —— 切账号就会切到那份归档。\n"
-            "游戏里换了账号后点「刷新游戏数据」, 工具会按读到的 UID 自动切过去(没有就新建)。",
+            "游戏里换了账号后点「抓取抽卡记录」, 工具会按读到的 UID 自动切过去(没有就新建)。",
             role="muted"))
         self._account_pick = QComboBox()
         self._account_pick.currentIndexChanged.connect(self._on_account_pick)
@@ -588,7 +588,7 @@ class HelpView(QWidget):
         _section(col, "使用方法")
         for t in [
             "1. 登录游戏进入主界面,在游戏内依次打开四类招募记录,等待每个列表显示。",
-            "2. 回到工具点击刷新游戏数据。读取完成后首页和招募记录页面自动更新。",
+            "2. 回到工具点击抓取抽卡记录。读取完成后首页和招募记录页面自动更新。",
             "3. 新角色/秘纹图片随版本内置更新,可点击“检查更新”。",
         ]:
             col.addWidget(mk_label(t, role="body"))
@@ -648,7 +648,7 @@ _LUCK_RANK = [
 
 def _luck_rank(avg_pulls: float | None) -> tuple[str, str, str]:
     if avg_pulls is None:
-        return "暂无数据", "刷新游戏数据后自动计算", "#6b7a83"
+        return "暂无数据", "抓取抽卡记录后自动计算", "#6b7a83"
     for limit, title, desc, color in _LUCK_RANK:
         if avg_pulls <= limit:
             return title, desc, color

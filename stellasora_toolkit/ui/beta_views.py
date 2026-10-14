@@ -168,7 +168,7 @@ class PoolCard(Card):
         link.setStyleSheet(f'border:0;padding:3px;color:{p.PRIMARY};font-size:11px;')
         foot.addWidget(link)
         self.body().addLayout(foot)
-        if not stats: self.setToolTip('先在游戏中打开此类招募记录，再刷新游戏数据。')
+        if not stats: self.setToolTip('先在游戏中打开此类招募记录，再抓取抽卡记录。')
 
 
 class HomeView(QWidget):
@@ -212,7 +212,7 @@ class HomeView(QWidget):
         title.setWordWrap(True)
         text.addWidget(title)
         latest = pulls[0] if pulls else None
-        text.addWidget(label(f'最近获得  {latest.name}   ·   {date(latest.timestamp)}' if latest else '先在游戏中打开招募记录，再点击「刷新游戏数据」。',12,p.MUTED))
+        text.addWidget(label(f'最近获得  {latest.name}   ·   {date(latest.timestamp)}' if latest else '先在游戏中打开招募记录，再点击「抓取抽卡记录」。',12,p.MUTED))
         rank = _luck_rank(stats.total_pulls/stats.total_five if stats.total_five else None)[0]
         fortune_row = QHBoxLayout()
         fortune_row.addWidget(badge(f'欧气评级 · {rank}',p.ACCENT))
