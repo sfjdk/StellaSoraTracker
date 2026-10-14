@@ -82,7 +82,7 @@ def stylesheet(variant):
     QPushButton[role="nav"] {{text-align:left;background:transparent;color:{p.MUTED};padding:13px 18px;}}
     QPushButton[role="nav"]:checked {{background:{p.SURFACE2};color:{p.PRIMARY};}}
     QPushButton[role="filter"] {{background:transparent;border:1px solid {p.LINE};color:{p.MUTED};}}
-    QPushButton[role="filter"]:checked {{background:{p.PRIMARY};color:{p.ON_PRIMARY};border:1px solid {p.PRIMARY};}}
+    QPushButton[role="filter"]:checked, QPushButton[role="choice"]:checked {{background:{p.PRIMARY};color:{p.ON_PRIMARY};border:1px solid {p.PRIMARY};}}
     QPushButton:disabled {{color:{p.MUTED};background:{p.SURFACE2};}}
     QComboBox, QLineEdit {{background:{p.SURFACE};border:1px solid {p.LINE};border-radius:7px;padding:8px 12px;}}
     QComboBox::drop-down {{border:0;width:22px;}}
@@ -97,5 +97,5 @@ def stylesheet(variant):
     QToolTip {{background:{p.SURFACE};color:{p.TEXT};border:1px solid {p.LINE};padding:6px;}}
     QTableWidget {{background:{p.SURFACE};alternate-background-color:{p.SURFACE2};border:1px solid {p.LINE};gridline-color:{p.LINE};}}
     QHeaderView::section {{background:{p.SURFACE2};border:0;padding:10px;font-weight:600;}}
-    QMessageBox {{background:{p.SURFACE};}}
+    QDialog, QMessageBox, QInputDialog {{background:{p.SURFACE};color:{p.TEXT};}}
     '''

@@ -12,3 +12,4 @@ release/
 .gitee-token
 ui-beta/*.log
 sites/
+.testtmp/

@@ -10,6 +10,7 @@ from PySide6.QtWidgets import (
 
 from ..catalog import same_item_name, gacha_item_name, is_five_star_item
 from ..gacha_stats import build_banner_stats_with_shared_pity
+from ..official_banners import official_pool_info
 from .constants import GACHA_CATEGORY_ORDER, GACHA_CATEGORY_NAMES, GACHA_CATEGORY_PITY_LIMITS, OFFICIAL_LIMITED_POOL_INFO
 from .beta_model import overview, categories, is_up
 from .theme import get_palette
@@ -253,7 +254,7 @@ class HomeView(QWidget):
         self._reflow()
         self.col.addLayout(self.grid)
         if stats.well_banners:
-            names = '、'.join(OFFICIAL_LIMITED_POOL_INFO[gid][3] for gid in stats.well_banners if gid in OFFICIAL_LIMITED_POOL_INFO)
+            names = '、'.join(info[3] for gid in stats.well_banners if (info:=official_pool_info(gid)))
             self.col.addWidget(label(f'UP 必得 · 120 抽达成   {names or "已达成的限时卡池"}',12,p.ACCENT))
         recent = Card(pad=16)
         row = QHBoxLayout()
@@ -370,7 +371,7 @@ class RecordsView(QWidget):
         for cat in selected:
             pools = build_banner_stats_with_shared_pity(grouped[cat],is_up=is_up if 'limited' in cat else None)
             for pool in pools:
-                info = OFFICIAL_LIMITED_POOL_INFO.get(pool.gid)
+                info = official_pool_info(pool.gid)
                 name = info[0] if info else GACHA_CATEGORY_NAMES[cat] if pool.gid in (1,2) else f'卡池 {pool.gid}'
                 match_pool = self.query in name.casefold()
                 hits = [pull for pull in pool.five_stars if not self.query or match_pool or self.query in pull.name.casefold()]
@@ -412,7 +413,7 @@ class RecordsView(QWidget):
         for cat in selected:
             for group in sorted(grouped[cat],key=lambda g:g.get('Time',0),reverse=True):
                 gid = group.get('Gid',0)
-                info = OFFICIAL_LIMITED_POOL_INFO.get(gid)
+                info = official_pool_info(gid)
                 pool_name = info[0] if info else GACHA_CATEGORY_NAMES[cat] if gid in (1,2) else f'卡池 {gid}'
                 for iid in reversed(group.get('Ids',[])):
                     name = gacha_item_name(iid)

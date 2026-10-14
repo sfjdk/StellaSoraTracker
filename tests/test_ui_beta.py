@@ -66,7 +66,7 @@ class BetaTests(unittest.TestCase):
             root = Path(tmp)
             records = [{'Gid':10157,'Time':1787051539,'Ids':[103,157]}]
             (root/ARCHIVE_FILENAME).write_text(json.dumps({'categories':{'1':records}}),encoding='utf-8')
-            window = StellaSoraApp(root,demo=False)
+            window = StellaSoraApp(root,demo=False,online_sync=False)
             self.assertEqual(window.snapshot.gacha,records)
             self.assertEqual(window.snapshot.pull_count,2)
             window.close()
@@ -93,11 +93,15 @@ class BetaTests(unittest.TestCase):
 
     def test_refresh_uses_existing_extractor_and_surfaces_errors_without_losing_archive(self):
         with tempfile.TemporaryDirectory() as tmp:
-            window = StellaSoraApp(Path(tmp),demo=False)
+            window = StellaSoraApp(Path(tmp),demo=False,online_sync=False)
             original = window.snapshot
-            with patch('stellasora_toolkit.ui.window.extract_snapshot',side_effect=RuntimeError('游戏未启动')) as extractor:
+            with patch('stellasora_toolkit.ui.controller.extract_snapshot',side_effect=RuntimeError('游戏未启动')) as extractor, patch('stellasora_toolkit.ui.controller.QMessageBox.critical'), patch('stellasora_toolkit.ui.controller.probe_running_groups',return_value=[]):
                 window.refresh()
-                for worker in list(window._workers): worker.wait(3000)
+                import time
+                for _ in range(200):
+                    self.app.processEvents()
+                    if not window._busy: break
+                    time.sleep(0.01)
                 self.app.processEvents()
                 self.app.processEvents()
                 self.assertEqual(extractor.call_count,1)
@@ -115,7 +119,7 @@ class BetaTests(unittest.TestCase):
             archive.write_text(original,encoding='utf-8')
             imported = root / 'incoming.json'
             imported.write_text(json.dumps({'categories':{'1':[old,new]}}),encoding='utf-8')
-            window = StellaSoraApp(root,demo=False)
+            window = StellaSoraApp(root,demo=False,online_sync=False)
             with patch('stellasora_toolkit.ui.window.QFileDialog.getOpenFileName',return_value=(str(imported),'JSON')):
                 window.import_archive()
             self.assertEqual(window.snapshot.pull_count,3)
@@ -131,7 +135,7 @@ class BetaTests(unittest.TestCase):
             archive.write_text(original,encoding='utf-8')
             imported = root / 'incoming.json'
             imported.write_text(json.dumps({'groups':[{'Gid':1,'Time':20,'Ids':[134]}]}),encoding='utf-8')
-            window = StellaSoraApp(root,demo=False)
+            window = StellaSoraApp(root,demo=False,online_sync=False)
             with patch('stellasora_toolkit.ui.window.QFileDialog.getOpenFileName',return_value=(str(imported),'JSON')), patch('stellasora_toolkit.ui.window.shutil.copy2',side_effect=OSError('磁盘不可写')):
                 window.import_archive()
             self.assertEqual(archive.read_text(encoding='utf-8'),original)

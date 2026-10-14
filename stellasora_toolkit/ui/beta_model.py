@@ -5,11 +5,12 @@ from datetime import datetime
 from ..catalog import gacha_item_name, same_item_name
 from ..gacha_stats import build_category_stat, build_banner_stats_with_shared_pity, classify_history_category
 from ..service import Snapshot
+from ..official_banners import official_pool_info
 from .constants import GACHA_CATEGORY_ORDER, OFFICIAL_LIMITED_POOL_INFO
 
 
 def is_up(gid: int, item_id: int) -> bool:
-    info = OFFICIAL_LIMITED_POOL_INFO.get(gid)
+    info = official_pool_info(gid)
     # Unknown future banners retain normal five-star resets until metadata exists.
     return info is None or same_item_name(gacha_item_name(item_id), info[3])
 
@@ -59,13 +60,14 @@ def demo_snapshot() -> Snapshot:
     ]
     data = {}
     for gid, date, hits, trailing in specs:
-        cat = 1 if 10000 <= gid < 20000 else 2 if gid >= 20000 else gid + 2
+        cat = 1 if 10000 <= gid < 20000 else 3 if gid >= 20000 else 2 if gid == 1 else 4
+        filler = 103 if cat in (1,2) else 211001
         base = int(datetime.fromisoformat(date).timestamp())
         groups = data.setdefault(cat, [])
         for offset, (interval, item) in enumerate(hits):
             groups.append({'Gid': gid, 'Time': base + offset * 3600,
-                           'Ids': [103 if gid < 20000 else 211001] * (interval - 1) + [item]})
+                           'Ids': [filler] * (interval - 1) + [item]})
         if trailing:
             groups.append({'Gid': gid, 'Time': base + len(hits) * 3600,
-                           'Ids': [103 if gid < 20000 else 211001] * trailing})
+                           'Ids': [filler] * trailing})
     return Snapshot([g for groups in data.values() for g in groups], gacha_categories=data)

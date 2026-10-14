@@ -14,12 +14,21 @@ from urllib.parse import urlparse
 from urllib.request import Request, urlopen
 
 
-UPDATE_SOURCE = os.environ.get("STELLASORA_UPDATE_SOURCE", "gitee").lower()
-UPDATE_MANIFEST_URLS = {
-    "github": "https://raw.githubusercontent.com/zhenkotone/stellasora_gacha/main/app_update_github.json",
-    "gitee": "https://gitee.com/zhen-z/stellasora_gacha/raw/master/app_update_gitee.json",
-}
-UPDATE_MANIFEST_URL = UPDATE_MANIFEST_URLS.get(UPDATE_SOURCE, UPDATE_MANIFEST_URLS["gitee"])
+# 更新渠道只有 GitHub 一个。
+# 清单地址不写死在代码里, 由环境变量提供:
+#   STELLASORA_UPDATE_MANIFEST_GITHUB : 更新清单完整 URL
+# 未配置时更新检查视为"未配置", 直接提示而不会去请求任何地址。
+UPDATE_MANIFEST_ENV_VAR = "STELLASORA_UPDATE_MANIFEST_GITHUB"
+
+
+def update_urls() -> list[str]:
+    """返回更新清单地址; 未配置时返回空列表。"""
+    url = os.environ.get(UPDATE_MANIFEST_ENV_VAR, "").strip()
+    return [url] if url else []
+
+
+UPDATE_MANIFEST_URL = next(iter(update_urls()), "")
+
 APP_EXE_NAME = "StellaSoraGachaTool.exe"
 UPDATER_EXE_NAME = "StellaSoraUpdater.exe"
 APP_INSTALL_FOLDER = "StellaSoraGachaTool"
@@ -90,12 +99,22 @@ def parse_update_manifest(manifest: object) -> AppUpdate:
     return update
 
 
-def check_for_update(manifest_url: str, current_version: str) -> AppUpdate | None:
-    request = Request(manifest_url, headers={"User-Agent": "StellaSoraToolkit/1.0"})
-    with urlopen(request, timeout=12) as response:
-        manifest = json.loads(response.read().decode("utf-8"))
-    update = parse_update_manifest(manifest)
-    return update if is_newer_version(update.version, current_version) else None
+def check_for_update(manifest_urls, current_version: str) -> AppUpdate | None:
+    """按优先级依次检查清单源; 某源正常(无论有无新版)即返回, 全部失败才抛错。"""
+    if isinstance(manifest_urls, str):
+        manifest_urls = [manifest_urls]
+    last_error: Exception | None = None
+    for manifest_url in manifest_urls:
+        try:
+            request = Request(manifest_url, headers={"User-Agent": "StellaSoraToolkit/1.0"})
+            with urlopen(request, timeout=12) as response:
+                manifest = json.loads(response.read().decode("utf-8"))
+            update = parse_update_manifest(manifest)
+            return update if is_newer_version(update.version, current_version) else None
+        except Exception as err:
+            last_error = err
+            continue
+    raise last_error if last_error is not None else RuntimeError("update check failed")
 
 
 def is_installed_application(executable: Path) -> bool:

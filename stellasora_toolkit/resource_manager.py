@@ -12,15 +12,16 @@ from pathlib import Path
 from urllib.parse import urljoin, urlparse
 from urllib.request import Request, urlopen
 
+from . import server_config
+from .app_updater import UPDATE_MANIFEST_ENV_VAR
+from .catalog import is_gacha_item
 
-UPDATE_SOURCE = os.environ.get("STELLASORA_UPDATE_SOURCE", "gitee").lower()
-RESOURCE_MANIFEST_URLS = {
-    "github": "https://raw.githubusercontent.com/zhenkotone/stellasora_gacha/main/resource_manifest_github.json",
-    "gitee": "https://gitee.com/zhen-z/stellasora_gacha/raw/master/resource_manifest_gitee.json",
-}
+
+# 资源清单与更新清单共用同一环境变量(STELLASORA_UPDATE_MANIFEST_GITHUB),
+# 代码内不写死任何仓库地址; 未配置时更新流程视为"未配置"。
 STELLABASE_API = "https://stella.ennead.cc/api/stella"
 STELLABASE_ASSET_API = "https://stella.ennead.cc/api/asset"
-DEFAULT_MANIFEST_URL = RESOURCE_MANIFEST_URLS.get(UPDATE_SOURCE, RESOURCE_MANIFEST_URLS["gitee"])
+DEFAULT_MANIFEST_URL = os.environ.get(UPDATE_MANIFEST_ENV_VAR, "").strip()
 ProgressCallback = Callable[[str], None]
 
 
@@ -41,11 +42,15 @@ def _read_url(url: str, progress: ProgressCallback | None = None) -> bytes:
 
 
 def _scrape_stellabase_items(progress: ProgressCallback | None = None) -> list[dict]:
-    """Read current five-star portraits from StellaBase's public JSON API."""
+    """Read current five-star portraits from StellaBase's public JSON API.
+
+    lang 取当前激活版本(server_config), 名称语言与游戏一致。
+    """
     discovered: list[dict] = []
+    lang = server_config.api_lang()
     for endpoint, kind, folder, rarity_key in (
-        ("characters?lang=CN", "traveler", "travelers", "grade"),
-        ("discs?lang=CN", "disc", "discs", "star"),
+        (f"characters?lang={lang}", "traveler", "travelers", "grade"),
+        (f"discs?lang={lang}", "disc", "discs", "star"),
     ):
         try:
             payload = json.loads(_read_url(f"{STELLABASE_API}/{endpoint}", progress).decode("utf-8"))
@@ -63,6 +68,9 @@ def _scrape_stellabase_items(progress: ProgressCallback | None = None) -> list[d
                 continue
             image_path = str(entry.get("icon") or "")
             if rarity < 5 or not image_path.startswith("/stella/assets/"):
+                continue
+            # 与 catalog_sync 同口径: BOSS/剧情单位不是抽卡产出物, 不该进头像库
+            if not is_gacha_item(item_id):
                 continue
             discovered.append(
                 {

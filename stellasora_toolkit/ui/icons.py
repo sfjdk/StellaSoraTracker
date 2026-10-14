@@ -18,7 +18,7 @@ def icon(name,color,size=18):
         for y,x in ((4,8),(10,13),(16,6)):
             p.drawLine(2,y,18,y)
             p.setBrush(QColor(color)); p.drawEllipse(QPointF(x,y),2,2); p.setBrush(Qt.NoBrush)
-    elif name == 'help':
+    elif name in ('help','account'):
         p.drawEllipse(QRectF(2,2,16,16))
         p.drawLine(10,9,10,14); p.drawPoint(10,6)
     elif name == 'refresh':

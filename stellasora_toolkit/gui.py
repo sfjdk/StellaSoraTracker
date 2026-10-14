@@ -37,6 +37,7 @@ def build_parser() -> argparse.ArgumentParser:
     parser.add_argument("--dark", action="store_true", help="深色模式")
     parser.add_argument("--beta", choices=("orbit", "sky", "journal"), help="UI Beta 风格")
     parser.add_argument("--demo", action="store_true", help="仅在内存中展示演示记录，不读取游戏或写入归档")
+    parser.add_argument("--server", choices=("cn","intl","jp"), help="游戏版本：国服、国际服、日服")
     parser.add_argument("--smoke-test", action="store_true", help=argparse.SUPPRESS)
     return parser
 
@@ -67,6 +68,11 @@ def main(argv: list[str] | None = None) -> int:
     if args.smoke_test:
         from .ui import window, views, widgets, theme  # noqa: F401
         return 0
+    if args.server:
+        from . import server_config
+        server_config.set_active(args.server)
+        if not args.demo:
+            server_config.save_key(server_config.config_path(args.output),args.server,manual=True)
     if not _ensure_admin():
         return 0  # 已请求提权重启, 原实例退出
     from .ui.window import run

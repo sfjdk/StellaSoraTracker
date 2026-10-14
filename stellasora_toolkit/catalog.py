@@ -27,6 +27,8 @@ TRAVELER_NAMES = {
     133: "夏花",
     134: "冬香",
     135: "雾语",
+    137: "埃莉诺",
+    139: "艾蕾",
     140: "斯帕克拉",
     141: "赤霞",
     142: "珂赛特",
@@ -57,6 +59,8 @@ FIVE_STAR_TRAVELERS = {
     133,
     134,
     135,
+    137,
+    139,
     140,
     141,
     143,
@@ -87,8 +91,23 @@ FIVE_STAR_DISCS = {
     214052: "奇迹一触", 214053: "欢聚时刻", 214054: "微小的乐园", 214055: "浮光掠影",
     214056: "斑驳夏影",
     214057: "伴我航行",
+    214058: "夏日进行曲",
+    214059: "飞吧，笼中鸟",
+    214060: "荣誉时刻",
+    214061: "睡前童话",
+    214062: "美好，尽在昨日",
 }
 FIVE_STAR_ITEMS = set(FIVE_STAR_TRAVELERS) | set(FIVE_STAR_DISCS)
+
+# 非抽取单位: StellaBase 的角色接口把 BOSS/剧情单位(魔侍巨像, grade=5)也算作五星角色,
+# 但它们不会出现在抽卡记录里。若当成可抽取五星注册, 会去下载 BOSS 头像, 并让
+# 对齐校验永远报"星级错位"。这些 id 明确排除。
+NON_GACHA_ITEM_IDS = frozenset({997, 998, 999})
+
+
+def is_gacha_item(item_id: int) -> bool:
+    """是否可能是抽卡产出物(排除 BOSS/剧情单位)。"""
+    return int(item_id) not in NON_GACHA_ITEM_IDS
 
 
 def is_five_star_item(value: Any) -> bool:

@@ -1,4 +1,4 @@
-"""四个视图:首页 / 招募记录 / 设置 / 使用说明。"""
+"""五个视图:首页 / 招募记录 / 设置 / 账户 / 使用说明。"""
 from __future__ import annotations
 
 import json
@@ -7,17 +7,18 @@ from datetime import datetime
 from pathlib import Path
 
 from PySide6.QtCore import Qt, QRectF
-from PySide6.QtGui import QColor, QPainter
+from PySide6.QtGui import QColor, QPainter, QPalette
 from PySide6.QtWidgets import (
-    QWidget, QVBoxLayout, QHBoxLayout, QFrame, QLabel,
+    QWidget, QVBoxLayout, QHBoxLayout, QFrame, QLabel, QLineEdit, QComboBox,
     QScrollArea, QPushButton, QButtonGroup, QSizePolicy, QTabWidget, QProgressBar,
 )
 
 from ..catalog import gacha_item_name, traveler_name, gem_type_name, table_values, format_random_attr
+from ..official_banners import official_pool_info
 from ..service import ARCHIVE_FILENAME
 from .constants import (
     GACHA_CATEGORY_ORDER, GACHA_CATEGORY_NAMES, GACHA_CATEGORY_PITY_LIMITS,
-    OFFICIAL_LIMITED_POOL_INFO, POOL_COLORS, APP_VERSION,
+    POOL_COLORS, APP_VERSION,
 )
 from .theme import get_palette
 from .widgets import Card, MetricCard, PityBar, UpBadge, WellBadge, AvatarLabel, WrapGrid, FlowLayout, mk_label, mk_divider
@@ -204,6 +205,37 @@ class RecordsView(QWidget):
             c = Card(); c.add(mk_label("当前范围内暂无五星记录。", role="muted")); self._content_col.addWidget(c)
 
 
+def _style_combo_popup(combo) -> None:
+    """把下拉列表(独立弹出窗口)刷成"主题底色 + 主题字色"。
+
+    弹出列表是单独的顶层窗口, 只写 QSS 时它常常还沿用系统主题的原生底色 ——
+    Windows 深色主题下就是"黑底 + 深色字", 完全看不清(用户报过)。这里三管齐下:
+    调色板 + autoFillBackground + 直接给这个控件挂一条局部样式, 保证浅色主题下
+    就是白底黑字。
+    """
+    colors = get_palette()
+    view = combo.view()
+    palette = view.palette()
+    palette.setColor(QPalette.ColorRole.Base, QColor(colors.SURFACE))
+    palette.setColor(QPalette.ColorRole.Text, QColor(colors.TEXT))
+    palette.setColor(QPalette.ColorRole.Window, QColor(colors.SURFACE))
+    palette.setColor(QPalette.ColorRole.WindowText, QColor(colors.TEXT))
+    palette.setColor(QPalette.ColorRole.Highlight, QColor(colors.PRIMARY))
+    palette.setColor(QPalette.ColorRole.HighlightedText, QColor(colors.ON_PRIMARY))
+    view.setPalette(palette)
+    view.setAutoFillBackground(True)
+    local = (f"background:{colors.SURFACE}; color:{colors.TEXT};"
+             f"border:1px solid {colors.LINE}; outline:none;"
+             f"selection-background-color:{colors.PRIMARY};"
+             f"selection-color:{colors.ON_PRIMARY};")
+    view.setStyleSheet(local)
+    # 弹出窗口的"外框"(容器)也要一起刷, 否则边框那圈还是原生底色
+    window = view.window()
+    if window is not None and window is not view:
+        window.setStyleSheet(local)
+        window.setAutoFillBackground(True)
+
+
 class SettingsView(QWidget):
     def __init__(self, callbacks: dict, parent=None):
         super().__init__(parent)
@@ -213,16 +245,48 @@ class SettingsView(QWidget):
         self._col.setContentsMargins(24, 20, 24, 24); self._col.setSpacing(16)
         outer.addWidget(_scroll(self._wrap))
         self._result = mk_label("", role="muted")
+        self._uid_state = mk_label("", role="muted")
 
-    def build(self, archive_path: str, summary: str) -> None:
+    def build(self, archive_path: str, summary: str, uid: str = "") -> None:
         clear_layout(self._col)
         self._col.addWidget(mk_label("设置", role="h1"))
         self._col.addWidget(mk_label("导入、管理本地归档与软件版本", role="muted"))
+        # 游戏版本(国服/国际服/日服): 决定读取的客户端进程名与卡池/角色名称语言
+        from .. import server_config
+        c0 = Card()
+        c0.add(mk_label("游戏版本", role="h2"))
+        c0.add(mk_label(
+            "国际服与日服共用 StellaSora.exe, 进程名分不出来 —— 工具会看游戏内存里加载的是哪种语言"
+            "(角色/秘纹名)自动识别。\n"
+            "也可以在这里手动指定: 点了以后就以你的选择为准, 自动识别不再覆盖; "
+            "想交回自动识别就点「自动识别」。\n"
+            "名称语言(卡池/角色/UP 判定)按生效的版本显示, 切换后会自动重新补全并重画记录页。",
+            role="muted"))
+        row = QHBoxLayout(); row.setSpacing(8)
+        group = QButtonGroup(self); group.setExclusive(True)
+        current = server_config.active()
+        self._server_buttons: dict[str, QPushButton] = {}
+        for _key, prof in server_config.PROFILES.items():
+            b = self._btn(f"{prof.label} · {prof.client_names[0]}", "choice",
+                          lambda k=_key: self._cb.get("server_changed", lambda _: None)(k))
+            b.setCheckable(True)
+            b.setChecked(_key == current.key)
+            group.addButton(b)
+            self._server_buttons[_key] = b
+            row.addWidget(b)
+        row.addWidget(self._btn("自动识别", "ghost",
+                                lambda: self._cb.get("server_auto", lambda: None)()))
+        row.addStretch(1)
+        c0.add(_hbox(row))
+        self._server_state = mk_label("", role="muted")
+        c0.add(self._server_state)
+        self._col.addWidget(c0)
         # 本地归档
         c1 = Card()
         c1.add(mk_label("本地归档", role="h2"))
         c1.add(mk_label("招募历史会合并保存在此文件中。", role="muted"))
         path = mk_label(archive_path, role="body")
+        self._archive_path = path
         path.setStyleSheet(f"color:{get_palette().PRIMARY}; font-size:12px;")
         c1.add(path)
         btns = QHBoxLayout(); btns.setSpacing(8)
@@ -237,12 +301,274 @@ class SettingsView(QWidget):
         self._summary = mk_label(summary, role="body")
         c2.add(self._summary)
         self._col.addWidget(c2)
+        # 账号(多账号: 每个 UID 一份归档, 互不混算)
+        c4 = Card()
+        c4.add(mk_label("账号", role="h2"))
+        c4.add(mk_label(
+            "每个账号(UID)有自己独立的记录与垫抽 —— 切账号就会切到那份归档。\n"
+            "游戏里换了账号后点「刷新游戏数据」, 工具会按读到的 UID 自动切过去(没有就新建)。",
+            role="muted"))
+        self._account_pick = QComboBox()
+        self._account_pick.currentIndexChanged.connect(self._on_account_pick)
+        _style_combo_popup(self._account_pick)
+        c4.add(self._account_pick)
+        rowa = QHBoxLayout(); rowa.setSpacing(8)
+        rowa.addWidget(self._btn("新建账号", "ghost", lambda: self._cb["account_new"]()))
+        rowa.addWidget(self._btn("重命名", "ghost", lambda: self._cb["account_rename"](self._picked_key())))
+        rowa.addWidget(self._btn("合并到…", "ghost", lambda: self._cb["account_merge"](self._picked_key())))
+        rowa.addWidget(self._btn("删除", "ghost", lambda: self._cb["account_remove"](self._picked_key())))
+        rowa.addStretch(1)
+        c4.add(_hbox(rowa))
+        self._account_state = mk_label("", role="muted")
+        c4.add(self._account_state)
+        self._col.addWidget(c4)
+        # UID 与分享文件
+        c3 = Card()
+        c3.add(mk_label("UID 与分享文件", role="h2"))
+        c3.add(mk_label(
+            "网页版与分享文件用 UID 标识一份记录, 文件名就是 <UID>.json。\n"
+            "导入过一次带 uid 的分享文件后工具会自动记住; 也可以在这里手填。"
+            "填好后每次刷新都会额外生成 <UID>.json(格式与分享文件完全一致)。",
+            role="muted"))
+        self._uid = QLineEdit(); self._uid.setPlaceholderText("例如 100872990")
+        self._uid.setText(uid or "")
+        c3.add(self._uid)
+        rowu = QHBoxLayout(); rowu.setSpacing(8)
+        rowu.addWidget(self._btn("保存 UID", "ghost", self._on_save_uid))
+        rowu.addWidget(self._btn("从游戏读取 UID", "ghost", self._on_read_uid))
+        rowu.addWidget(self._btn("导出发送文件", "primary", self._on_share))
+        rowu.addStretch(1)
+        c3.add(_hbox(rowu))
+        c3.add(self._uid_state)
+        self._col.addWidget(c3)
         self._col.addWidget(self._result)
         self._col.addStretch(1)
+
+    def set_uid(self, uid: str) -> None:
+        """同步 UID 输入框(导入文件学到新 uid 后调用)。"""
+        if hasattr(self, "_uid"):
+            self._uid.setText(uid or "")
+
+    def set_archive_path(self, path: str) -> None:
+        self._archive_path.setText(path)
+
+    def set_accounts(self, accounts: list[tuple[str, str]], active_key: str) -> None:
+        """刷新账号下拉框: accounts = [(key, 显示名), ...]。"""
+        if not hasattr(self, "_account_pick"):
+            return
+        blocked = self._account_pick.blockSignals(True)
+        self._account_pick.clear()
+        for key, label in accounts:
+            self._account_pick.addItem(label, key)
+        index = self._account_pick.findData(active_key)
+        if index >= 0:
+            self._account_pick.setCurrentIndex(index)
+        self._account_pick.blockSignals(blocked)
+
+    def set_account_state(self, text: str) -> None:
+        if hasattr(self, "_account_state"):
+            self._account_state.setText(text)
+
+    def _picked_key(self) -> str:
+        if not hasattr(self, "_account_pick"):
+            return ""
+        data = self._account_pick.currentData()
+        return str(data or "")
+
+    def _on_account_pick(self, _index: int) -> None:
+        """下拉框换账号 = 切到那份归档(不弹确认, 列表里点一下就该生效)。"""
+        key = self._picked_key()
+        if key:
+            self._cb["account_switch"](key)
+
+    def set_uid_state(self, text: str) -> None:
+        if hasattr(self, "_uid_state"):
+            self._uid_state.setText(text)
+
+    def _on_save_uid(self) -> None:
+        self._cb["save_uid"](self._uid.text())
+
+    def _on_read_uid(self) -> None:
+        self._cb["read_uid"]()
+
+    def _on_share(self) -> None:
+        self._cb["share"](self._uid.text())
+
+    def refresh_server_buttons(self) -> None:
+        """自动检测切换版本后, 让单选按钮跟随当前生效版本(与手动选择的按钮状态同步)。"""
+        from .. import server_config
+        current = server_config.active().key
+        for key, b in getattr(self, "_server_buttons", {}).items():
+            b.setChecked(key == current)
+
+    def set_server_state(self, text: str) -> None:
+        """当前版本的来源(手动指定 / 自动识别)与生效语言。"""
+        if hasattr(self, "_server_state"):
+            self._server_state.setText(text)
 
     def set_summary(self, summary: str) -> None:
         if hasattr(self, "_summary"):
             self._summary.setText(summary)
+
+    def _btn(self, txt, role, fn) -> QPushButton:
+        b = QPushButton(txt); b.setProperty("role", role)
+        b.setCursor(Qt.PointingHandCursor); b.clicked.connect(fn)
+        return b
+
+
+class AccountView(QWidget):
+    """账户页: 连服务器 / 登录注册 / 上传归档 / 退出。
+
+    与 SettingsView 的一个关键差异: 那边每次 build() 都 clear_layout 重建
+    (内容全是只读展示), 这里有一堆输入框 —— 重建会把用户正打到一半的内容
+    抹掉。所以布局只在 __init__ 建一次, 状态变化走 set_state() 只改标签
+    与可见性。
+
+    回调字典:
+        save_url(url)                        保存服务器地址
+        login(url, username, password)       登录
+        register(url, username, pw)          注册
+        logout()                             退出登录
+        upload(mode)                         上传归档
+        open_site()                          用浏览器打开网页版
+    """
+
+    def __init__(self, callbacks: dict, parent=None):
+        super().__init__(parent)
+        self._cb = callbacks
+        outer = QVBoxLayout(self); outer.setContentsMargins(0, 0, 0, 0)
+        wrap = QWidget(); col = QVBoxLayout(wrap)
+        col.setContentsMargins(24, 20, 24, 24); col.setSpacing(16)
+        outer.addWidget(_scroll(wrap))
+
+        col.addWidget(mk_label("账户", role="h1"))
+        col.addWidget(mk_label(
+            "把抽卡记录上传到网页版, 之后在任何设备上打开浏览器都能查看。\n"
+            "读取游戏内存只能在这台电脑上做, 网页端是只读的展示页。",
+            role="muted"))
+
+        # ---- 服务器地址 ----
+        c0 = Card()
+        c0.add(mk_label("服务器地址", role="h2"))
+        c0.add(mk_label(
+            "填网页版的访问地址, 例如 https://你的域名。"
+            "也可以直接粘贴别人给你的分享链接, 会自动取其中的站点地址。",
+            role="muted"))
+        self._url = QLineEdit(); self._url.setPlaceholderText("https://你的域名")
+        c0.add(self._url)
+        row0 = QHBoxLayout(); row0.setSpacing(8)
+        row0.addWidget(self._btn("保存地址", "ghost", self._on_save_url))
+        row0.addWidget(self._btn("打开网页版", "ghost", lambda: self._cb["open_site"]()))
+        row0.addStretch(1)
+        c0.add(_hbox(row0))
+        self._url_state = mk_label("", role="muted")
+        c0.add(self._url_state)
+        col.addWidget(c0)
+
+        # ---- 未登录: 登录 / 注册 ----
+        self._login_card = Card()
+        self._login_card.add(mk_label("登录", role="h2"))
+        self._login_card.add(mk_label(
+            "用网页版注册的账号登录。", role="muted"))
+        self._username = QLineEdit(); self._username.setPlaceholderText("用户名")
+        self._password = QLineEdit(); self._password.setPlaceholderText("密码")
+        self._password.setEchoMode(QLineEdit.Password)
+        self._login_card.add(self._username)
+        self._login_card.add(self._password)
+        row1 = QHBoxLayout(); row1.setSpacing(8)
+        row1.addWidget(self._btn("登录", "primary", self._on_login))
+        row1.addStretch(1)
+        self._login_card.add(_hbox(row1))
+
+        self._login_card.add(mk_divider())
+        self._login_card.add(mk_label("没有账号? 在这里注册", role="h2"))
+        self._reg_username = QLineEdit()
+        self._reg_username.setPlaceholderText("用户名 (3–20 字, 中文/字母/数字/下划线)")
+        self._reg_password = QLineEdit(); self._reg_password.setPlaceholderText("密码 (至少 8 位)")
+        self._reg_password.setEchoMode(QLineEdit.Password)
+        for w in (self._reg_username, self._reg_password):
+            self._login_card.add(w)
+        row2 = QHBoxLayout(); row2.setSpacing(8)
+        row2.addWidget(self._btn("注册", "ghost", self._on_register))
+        row2.addStretch(1)
+        self._login_card.add(_hbox(row2))
+        col.addWidget(self._login_card)
+
+        # ---- 已登录: 上传 / 退出 ----
+        self._account_card = Card()
+        self._account_card.add(mk_label("已登录", role="h2"))
+        self._who = mk_label("", role="body")
+        self._account_card.add(self._who)
+        self._account_card.add(mk_divider())
+        self._archive = mk_label("", role="muted")
+        self._account_card.add(self._archive)
+        row3 = QHBoxLayout(); row3.setSpacing(8)
+        row3.addWidget(self._btn("上传到服务器", "primary", lambda: self._on_upload("merge")))
+        row3.addWidget(self._btn("打开网页版", "ghost", lambda: self._cb["open_site"]()))
+        row3.addStretch(1)
+        self._account_card.add(_hbox(row3))
+        self._account_card.add(mk_label(
+            "上传只增不减: 服务器会把它已有的记录和这份合并, 重复的抽数会自动去掉。\n"
+            "所以重装系统、换电脑之后再上传, 也不会把服务器上更早的历史冲掉。",
+            role="muted"))
+        row4 = QHBoxLayout(); row4.setSpacing(8)
+        row4.addWidget(self._btn("退出登录", "ghost", lambda: self._cb["logout"]()))
+        row4.addStretch(1)
+        self._account_card.add(_hbox(row4))
+        col.addWidget(self._account_card)
+
+        # ---- 状态 ----
+        c3 = Card()
+        self._state = mk_label("", role="body")
+        c3.add(self._state)
+        col.addWidget(c3)
+        col.addStretch(1)
+
+        self.set_state(None, "")
+
+    # ---- 事件 ----
+    def _on_save_url(self) -> None:
+        self._cb["save_url"](self._url.text())
+
+    def _on_login(self) -> None:
+        self._cb["login"](self._url.text(), self._username.text(),
+                          self._password.text())
+
+    def _on_register(self) -> None:
+        self._cb["register"](self._url.text(), self._reg_username.text(),
+                             self._reg_password.text())
+
+    def _on_upload(self, mode: str) -> None:
+        self._cb["upload"](mode)
+
+    # ---- 状态 ----
+    def set_state(self, account, archive_text: str) -> None:
+        """account 为 None 或未登录时显示登录卡; 否则显示上传卡。"""
+        logged_in = bool(account is not None and getattr(account, "logged_in", False))
+        if account is not None and account.server_url:
+            # 不要覆盖用户正在编辑的内容
+            if not self._url.hasFocus() and self._url.text().strip() != account.server_url:
+                self._url.setText(account.server_url)
+            self._url_state.setText(f"当前: {account.server_url}")
+        else:
+            self._url_state.setText("尚未设置服务器地址")
+
+        self._login_card.setVisible(not logged_in)
+        self._account_card.setVisible(logged_in)
+        if logged_in:
+            self._who.setText(f"账号: {account.username or '(未知)'}")
+        self._archive.setText(archive_text or "尚未加载本地归档")
+
+    def set_busy(self, busy: bool) -> None:
+        for b in self.findChildren(QPushButton):
+            b.setEnabled(not busy)
+
+    def set_status(self, text: str) -> None:
+        self._state.setText(text)
+
+    def clear_password(self) -> None:
+        self._password.clear()
+        self._reg_password.clear()
 
     def _btn(self, txt, role, fn) -> QPushButton:
         b = QPushButton(txt); b.setProperty("role", role)
@@ -547,7 +873,7 @@ def _well_card(stats) -> QWidget:
     card.add(_hbox(head))
     row = QHBoxLayout(); row.setSpacing(18); row.setAlignment(Qt.AlignLeft)
     for gid, total in stats.well_banners.items():
-        info = OFFICIAL_LIMITED_POOL_INFO.get(gid)
+        info = official_pool_info(gid)
         iid = _up_item_id(info[3]) if info else None
         item = QWidget()
         bl = QVBoxLayout(item); bl.setContentsMargins(0, 0, 0, 0)
@@ -572,7 +898,7 @@ def _well_card(stats) -> QWidget:
 
 def _well_tile(gid: int, color: str) -> QWidget | None:
     """井 UP 磁贴: 指定旅人限时卡池满 120 抽一次性必得的 UP 角色(金边 + 井徽标)。"""
-    info = OFFICIAL_LIMITED_POOL_INFO.get(gid)
+    info = official_pool_info(gid)
     if not info:
         return None
     iid = _up_item_id(info[3])
@@ -601,7 +927,7 @@ def _tile(pull, color: str) -> QWidget:
     av.setParent(w)
     l.addWidget(av)
     row = QHBoxLayout(); row.setSpacing(0)
-    official = OFFICIAL_LIMITED_POOL_INFO.get(pull.gid)
+    official = official_pool_info(pull.gid)
     if official is not None:
         from ..catalog import same_item_name
         row.addWidget(UpBadge(same_item_name(pull.name, official[3])))
@@ -615,7 +941,7 @@ def _tile(pull, color: str) -> QWidget:
 
 def _banner_card(pool, color: str) -> Card:
     card = Card(pad=16)
-    official = OFFICIAL_LIMITED_POOL_INFO.get(pool.gid)
+    official = official_pool_info(pool.gid)
     std = {1: "旅人常驻招募", 2: "秘纹常驻招募"}.get(pool.gid, f"卡池 {pool.gid}")
     top = QHBoxLayout(); top.setSpacing(12)
     left = QVBoxLayout(); left.setSpacing(2)
@@ -707,7 +1033,7 @@ def _semantic_categories(records) -> dict:
 def _up_average(pool) -> int | None:
     from ..catalog import same_item_name
     up = sum(1 for pull in pool.five_stars
-             if (o := OFFICIAL_LIMITED_POOL_INFO.get(pull.gid)) is not None
+             if (o := official_pool_info(pull.gid)) is not None
              and same_item_name(pull.name, o[3]))
     return round(pool.total_pulls / up) if up else None
 

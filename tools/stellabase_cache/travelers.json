@@ -1,0 +1,554 @@
+[
+  {
+    "id": 110,
+    "name": "翡冷翠",
+    "icon": "/stella/assets/Firenze.png",
+    "portrait": "/stella/assets/head_11001_XL.png",
+    "description": "战场上，翡冷翠可以释放分身进行战斗。有传闻说，她在工作中也是如此，所以才能时刻保持优雅。",
+    "voiceActor": {
+      "cn": "子音",
+      "jp": "斎藤千和"
+    },
+    "birthday": "11.16",
+    "grade": 5,
+    "element": "暗",
+    "position": "先锋",
+    "attackType": "Melee",
+    "style": "稳扎稳打",
+    "faction": "联合种业",
+    "tags": [
+      "先锋",
+      "稳扎稳打",
+      "联合种业"
+    ]
+  },
+  {
+    "id": 114,
+    "name": "猫眼",
+    "icon": "/stella/assets/Chaton.png",
+    "portrait": "/stella/assets/head_11401_XL.png",
+    "description": "猫眼是白猫剧团的狙击手，喜欢近战的她，最终拿起了长度堪比身高，只能在远处等待的特殊武器。",
+    "voiceActor": {
+      "cn": "瑞比",
+      "jp": "佐倉綾音"
+    },
+    "birthday": "8.5",
+    "grade": 5,
+    "element": "火",
+    "position": "先锋",
+    "attackType": "Ranged",
+    "style": "奇思妙想",
+    "faction": "白猫剧团",
+    "tags": [
+      "先锋",
+      "奇思妙想",
+      "白猫剧团"
+    ]
+  },
+  {
+    "id": 115,
+    "name": "火垂",
+    "icon": "/stella/assets/Firefly.png",
+    "portrait": "/stella/assets/head_11501_XL.png",
+    "description": "操纵着可变形兵装的火垂，据说是恩赐意志秘密研发的超级武器。萤火般的微光，聚集起来也能毁天灭地。",
+    "voiceActor": {
+      "cn": "刘雯",
+      "jp": "長縄まりあ"
+    },
+    "birthday": "5.5",
+    "grade": 5,
+    "element": "光",
+    "position": "均衡",
+    "attackType": "Ranged",
+    "style": "收集控",
+    "faction": "恩赐意志",
+    "tags": [
+      "均衡",
+      "收集控",
+      "恩赐意志"
+    ]
+  },
+  {
+    "id": 119,
+    "name": "花原",
+    "icon": "/stella/assets/Nanoha.png",
+    "portrait": "/stella/assets/head_11901_XL.png",
+    "description": "花原是谷风的女仆，擅长以“花”为名的忍术。她引以为傲的葵花飞镖，能在高速移动中命中目标。",
+    "voiceActor": {
+      "cn": "豆奶",
+      "jp": "佐藤聡美"
+    },
+    "birthday": "4.20",
+    "grade": 5,
+    "element": "风",
+    "position": "先锋",
+    "attackType": "Ranged",
+    "style": "求知心切",
+    "faction": "谷风家政",
+    "tags": [
+      "先锋",
+      "求知心切",
+      "谷风家政"
+    ]
+  },
+  {
+    "id": 125,
+    "name": "苍兰",
+    "icon": "/stella/assets/Freesia.png",
+    "portrait": "/stella/assets/head_12501_XL.png",
+    "description": "远古传承的“狂化”魔法让苍兰不停地战斗，直到体力耗尽。这是不宜被人看到的，优雅少女的暗面。",
+    "voiceActor": {
+      "cn": "张晔",
+      "jp": "Lynn"
+    },
+    "birthday": "9.9",
+    "grade": 5,
+    "element": "水",
+    "position": "均衡",
+    "attackType": "Melee",
+    "style": "冒险家",
+    "faction": "万送屋",
+    "tags": [
+      "均衡",
+      "冒险家",
+      "万送屋"
+    ]
+  },
+  {
+    "id": 130,
+    "name": "多娜",
+    "icon": "/stella/assets/Donna.png",
+    "portrait": "/stella/assets/head_13001_XL.png",
+    "description": "多娜是万送屋的领袖与纽带，活力满满，自信而乐观；她的利箭会突破一切试图阻挡邮路的存在。",
+    "voiceActor": {
+      "cn": "苏婉",
+      "jp": "阿澄佳奈"
+    },
+    "birthday": "10.9",
+    "grade": 5,
+    "element": "水",
+    "position": "均衡",
+    "attackType": "Ranged",
+    "style": "奇思妙想",
+    "faction": "万送屋",
+    "tags": [
+      "均衡",
+      "奇思妙想",
+      "万送屋"
+    ]
+  },
+  {
+    "id": 132,
+    "name": "密涅瓦",
+    "icon": "/stella/assets/Minova.png",
+    "portrait": "/stella/assets/head_13201_XL.png",
+    "description": "作为灰风俱乐部的领导者，密涅瓦很少单独行动。战斗中，她最大的依仗绝非滑板和球棒，而是伙伴。",
+    "voiceActor": {
+      "cn": "杨清江",
+      "jp": "ファイルーズあい"
+    },
+    "birthday": null,
+    "grade": 5,
+    "element": "光",
+    "position": "均衡",
+    "attackType": "Melee",
+    "style": "稳扎稳打",
+    "faction": "灰风俱乐部",
+    "tags": [
+      "均衡",
+      "稳扎稳打",
+      "灰风俱乐部"
+    ]
+  },
+  {
+    "id": 133,
+    "name": "夏花",
+    "icon": "/stella/assets/Nazuka.png",
+    "portrait": "/stella/assets/head_13301_XL.png",
+    "description": "操控风之魔法的强大旅人，优秀的判断力是身为领导者的她与生俱来的天赋。",
+    "voiceActor": {
+      "cn": "刘十四",
+      "jp": "伊藤静"
+    },
+    "birthday": "6.17",
+    "grade": 5,
+    "element": "风",
+    "position": "均衡",
+    "attackType": "Ranged",
+    "style": "稳扎稳打",
+    "faction": "花令旅团",
+    "tags": [
+      "均衡",
+      "稳扎稳打",
+      "花令旅团"
+    ]
+  },
+  {
+    "id": 134,
+    "name": "冬香",
+    "icon": "/stella/assets/Fuyuka.png",
+    "portrait": "/stella/assets/head_13401_XL.png",
+    "description": "性格有些怕生，却实力高强的旅人。很难想象，这副沉重的手甲其实是她天生怪力的限制器。",
+    "voiceActor": {
+      "cn": "刘一蕾",
+      "jp": "安済知佳"
+    },
+    "birthday": "1.31",
+    "grade": 5,
+    "element": "火",
+    "position": "先锋",
+    "attackType": "Melee",
+    "style": "求知心切",
+    "faction": "花令旅团",
+    "tags": [
+      "先锋",
+      "求知心切",
+      "花令旅团"
+    ]
+  },
+  {
+    "id": 135,
+    "name": "雾语",
+    "icon": "/stella/assets/Mistique.png",
+    "portrait": "/stella/assets/head_13501_XL.png",
+    "description": "雾语是绯瞳传讯的魔女，擅长驱使召唤灵，以真相为食的召唤灵会帮助雾语清扫敌人，换取食物。",
+    "voiceActor": {
+      "cn": "吴哲茹",
+      "jp": "古賀葵"
+    },
+    "birthday": "11.8",
+    "grade": 5,
+    "element": "暗",
+    "position": "均衡",
+    "attackType": "Ranged",
+    "style": "奇思妙想",
+    "faction": "绯曈传讯",
+    "tags": [
+      "均衡",
+      "奇思妙想",
+      "绯曈传讯"
+    ]
+  },
+  {
+    "id": 137,
+    "name": "埃莉诺",
+    "icon": "/stella/assets/Eleanor.png",
+    "portrait": "/stella/assets/head_13701_XL.png",
+    "description": "既是大小姐又是旅人的埃莉诺，善于不断切换武器，施展出富于变化的攻击，利用多样战术迷惑对手。",
+    "voiceActor": {
+      "cn": "施丛昊",
+      "jp": "花岩香奈"
+    },
+    "birthday": "3.24",
+    "grade": 5,
+    "element": "风",
+    "position": "均衡",
+    "attackType": "Melee",
+    "style": "稳扎稳打",
+    "faction": "自由旅人",
+    "tags": [
+      "均衡",
+      "稳扎稳打",
+      "自由旅人"
+    ]
+  },
+  {
+    "id": 139,
+    "name": "艾蕾",
+    "icon": "/stella/assets/Allie.png",
+    "portrait": "/stella/assets/head_13901_XL.png",
+    "description": "身为孤儿院的妈妈，艾蕾会用自己的长刀，拼尽全力保护自己的孩子们。",
+    "voiceActor": {
+      "cn": "曾彤",
+      "jp": "石飛恵里花"
+    },
+    "birthday": "3.21",
+    "grade": 5,
+    "element": "水",
+    "position": "先锋",
+    "attackType": "Melee",
+    "style": "稳扎稳打",
+    "faction": "自由旅人",
+    "tags": [
+      "先锋",
+      "稳扎稳打",
+      "自由旅人"
+    ]
+  },
+  {
+    "id": 140,
+    "name": "斯帕克拉",
+    "icon": "/stella/assets/Sparkla.png",
+    "portrait": "/stella/assets/head_14001_XL.png",
+    "description": "斯帕克拉的超级行动派和兔子派可以根据不同的战场环境，变形为不同的模式针对敌人。",
+    "voiceActor": {
+      "cn": "宋政楠",
+      "jp": "工藤文音"
+    },
+    "birthday": "7.26",
+    "grade": 5,
+    "element": "地",
+    "position": "先锋",
+    "attackType": "Ranged",
+    "style": "奇思妙想",
+    "faction": "柔光会社",
+    "tags": [
+      "先锋",
+      "奇思妙想",
+      "柔光会社"
+    ]
+  },
+  {
+    "id": 141,
+    "name": "赤霞",
+    "icon": "/stella/assets/Chixia.png",
+    "portrait": "/stella/assets/head_14101_XL.png",
+    "description": "明明身为玄师却意外的胆小，巨大的毛笔是改造过的喷火器，也是她绘制最强符纸的伙伴。",
+    "voiceActor": {
+      "cn": "唐夏芳",
+      "jp": "徳井青空"
+    },
+    "birthday": "4.10",
+    "grade": 5,
+    "element": "火",
+    "position": "均衡",
+    "attackType": "Melee",
+    "style": "收集控",
+    "faction": "云笈文化",
+    "tags": [
+      "均衡",
+      "收集控",
+      "云笈文化"
+    ]
+  },
+  {
+    "id": 143,
+    "name": "风影",
+    "icon": "/stella/assets/Wraith.png",
+    "portrait": "/stella/assets/head_14301_XL.png",
+    "description": "自极寒北境而来，黎明近卫的精锐战士。她精通各种武器，对有关永夜的案件总是格外上心。",
+    "voiceActor": {
+      "cn": "王美心",
+      "jp": "高橋ミナミ"
+    },
+    "birthday": "12.24",
+    "grade": 5,
+    "element": "风",
+    "position": "先锋",
+    "attackType": "Ranged",
+    "style": "冒险家",
+    "faction": "恩赐意志",
+    "tags": [
+      "先锋",
+      "冒险家",
+      "恩赐意志"
+    ]
+  },
+  {
+    "id": 144,
+    "name": "千都世",
+    "icon": "/stella/assets/Chitose.png",
+    "portrait": "/stella/assets/head_14401_XL.png",
+    "description": "千都世是以刀为自我，身披锐气的强大武者。她的刀法可聚集水流，化作水蛇之势摧毁敌阵。",
+    "voiceActor": {
+      "cn": "张梦娇",
+      "jp": "月城日花"
+    },
+    "birthday": "11.3",
+    "grade": 5,
+    "element": "水",
+    "position": "先锋",
+    "attackType": "Melee",
+    "style": "求知心切",
+    "faction": "自由旅人",
+    "tags": [
+      "先锋",
+      "求知心切",
+      "自由旅人"
+    ]
+  },
+  {
+    "id": 145,
+    "name": "乙叶",
+    "icon": "/stella/assets/Otoha.png",
+    "portrait": "/stella/assets/head_14501_XL.png",
+    "description": "行于暗夜的神秘忍者，执一柄长伞，伞骨为刃，袖里藏锋。",
+    "voiceActor": {
+      "cn": "张安琪",
+      "jp": "加隈亜衣"
+    },
+    "birthday": "1.14",
+    "grade": 5,
+    "element": "暗",
+    "position": "均衡",
+    "attackType": "Ranged",
+    "style": "求知心切",
+    "faction": "自由旅人",
+    "tags": [
+      "均衡",
+      "求知心切",
+      "自由旅人"
+    ]
+  },
+  {
+    "id": 149,
+    "name": "格芮",
+    "icon": "/stella/assets/Gerie.png",
+    "portrait": "/stella/assets/head_14901_XL.png",
+    "description": "格芮在战场上肆意地挥舞链铲“宽恕”，拖拽、压制大片的敌人，播撒直抵灵魂的恐惧并完成制裁。",
+    "voiceActor": {
+      "cn": "静宸",
+      "jp": "天音ゆかり"
+    },
+    "birthday": "3.28",
+    "grade": 5,
+    "element": "地",
+    "position": "先锋",
+    "attackType": "Melee",
+    "style": "求知心切",
+    "faction": "恩赐意志",
+    "tags": [
+      "先锋",
+      "求知心切",
+      "恩赐意志"
+    ]
+  },
+  {
+    "id": 155,
+    "name": "希娅",
+    "icon": "/stella/assets/Shia.png",
+    "portrait": "/stella/assets/head_15501_XL.png",
+    "description": "希娅的行动十分灵敏。她身踏冲浪板，与麾下的“雪兔”和“夜兔”一起，组成势不可挡的巨浪攻势。",
+    "voiceActor": {
+      "cn": "Vila",
+      "jp": "堀江由衣"
+    },
+    "birthday": "8.26",
+    "grade": 5,
+    "element": "光",
+    "position": "先锋",
+    "attackType": "Ranged",
+    "style": "冒险家",
+    "faction": "自由旅人",
+    "tags": [
+      "先锋",
+      "冒险家",
+      "自由旅人"
+    ]
+  },
+  {
+    "id": 156,
+    "name": "小禾",
+    "icon": "/stella/assets/Nazuna.png",
+    "portrait": "/stella/assets/head_15601_XL.png",
+    "description": "小禾使用手弩与她心爱的娃娃一同作战，她的奇思妙想与幸运值，总能为团队提供意料之外的惊喜。",
+    "voiceActor": {
+      "cn": "谢莹",
+      "jp": "江原萌依"
+    },
+    "birthday": "3.3",
+    "grade": 5,
+    "element": "地",
+    "position": "辅助",
+    "attackType": "Ranged",
+    "style": "收集控",
+    "faction": "花令旅团",
+    "tags": [
+      "辅助",
+      "收集控",
+      "花令旅团"
+    ]
+  },
+  {
+    "id": 157,
+    "name": "花铃",
+    "icon": "/stella/assets/Karin.png",
+    "portrait": "/stella/assets/head_15701_XL.png",
+    "description": "花铃扛起捕鱼枪，与那位凶猛的鲨老大一同登场，一人一鱼的合作将为战场掀起滔天巨浪。",
+    "voiceActor": {
+      "cn": "花玲",
+      "jp": "小仓唯"
+    },
+    "birthday": "9.1",
+    "grade": 5,
+    "element": "暗",
+    "position": "先锋",
+    "attackType": "Ranged",
+    "style": "奇思妙想",
+    "faction": "自由旅人",
+    "tags": [
+      "先锋",
+      "奇思妙想",
+      "自由旅人"
+    ]
+  },
+  {
+    "id": 158,
+    "name": "菈露（圣夜）",
+    "icon": "/stella/assets/Snowish_Laru.png",
+    "portrait": "/stella/assets/head_15801_XL.png",
+    "description": "打扮成圣夜使者的菈露，正进行雪愿节特派。在圣夜凌晨的钟声里，锡兵与礼炮将见证一场闪烁的奇迹。",
+    "voiceActor": {
+      "cn": "宋媛媛",
+      "jp": "田中あいみ"
+    },
+    "birthday": "8.20",
+    "grade": 5,
+    "element": "火",
+    "position": "均衡",
+    "attackType": "Melee",
+    "style": "奇思妙想",
+    "faction": "恩赐意志",
+    "tags": [
+      "均衡",
+      "奇思妙想",
+      "恩赐意志"
+    ]
+  },
+  {
+    "id": 159,
+    "name": "科洛妮丝（新春）",
+    "icon": "/stella/assets/Springseek_Coronis.png",
+    "portrait": "/stella/assets/head_15901_XL.png",
+    "description": "科洛妮丝身穿龙裔的传统服饰，正在苍梧享受她的假期。精心调配的药剂，是她浓烈的“爱意”。",
+    "voiceActor": {
+      "cn": "周语晗",
+      "jp": "斉藤佑圭"
+    },
+    "birthday": "10.15",
+    "grade": 5,
+    "element": "地",
+    "position": "均衡",
+    "attackType": "Ranged",
+    "style": "收集控",
+    "faction": "自由旅人",
+    "tags": [
+      "均衡",
+      "收集控",
+      "自由旅人"
+    ]
+  },
+  {
+    "id": 160,
+    "name": "薇洛（盛夏）",
+    "icon": "/stella/assets/Suntide_Willow.png",
+    "portrait": "/stella/assets/head_16001_XL.png",
+    "description": "薇洛穿上了大家为她挑选的泳装，学着享受完全没有工作的假期。",
+    "voiceActor": {
+      "cn": "mace",
+      "jp": "生天目仁美"
+    },
+    "birthday": "12.14",
+    "grade": 5,
+    "element": "水",
+    "position": "辅助",
+    "attackType": "Ranged",
+    "style": "稳扎稳打",
+    "faction": "地理协会",
+    "tags": [
+      "辅助",
+      "稳扎稳打",
+      "地理协会"
+    ]
+  }
+]
