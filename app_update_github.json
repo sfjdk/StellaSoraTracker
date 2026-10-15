@@ -1,6 +1,6 @@
 {
-  "version": "1.2.25",
-  "url": "https://github.com/sfjdk/StellaSoraTracker/releases/download/v1.2.25/StellaSoraGachaTool-1.2.25-win64.zip",
-  "sha256": "db460d6755b5235abe2d174ad80aa05f9da1da1eb059ddd180a0c86b553ef3f1",
-  "notes": "修复导出分享/查看记录把几个号合起来的问题: 根因是「文件名取输入框里的 UID、内容取当前账号的归档」—— 游戏里换号后输入框先变成新 UID(内存里读到的), 账号还没切过去, 于是导出成 308423356.json 却装着 100872990 的全部记录。现在导出统一走 export_share_for_uid: 按 UID 找到对应账号, 用**那个账号**的归档生成文件(即使它不是当前账号), UID 不属于任何账号时直接说明而不生成; 分享文件一律写进账号目录, 不再散落在根目录(底层函数也会把根目录请求重定向到当前账号)。另外「保存 UID」和「从游戏读取 UID」都不会再把别的账号的 UID 贴到当前账号上, 而是自动切到那个账号。"
+  "version": "1.2.26",
+  "url": "https://github.com/sfjdk/StellaSoraTracker/releases/download/v1.2.26/StellaSoraGachaTool-1.2.26-win64.zip",
+  "sha256": "509d2de2b8ef8764c37ae08f02634f4bc196f0167d73edc5247a5c974b57f0a5",
+  "notes": "三套界面主题均采用左侧导航；设置页切换主题并自动记忆；主操作改为抓取抽卡记录；整合多账号、UID 分享、三服识别、导入导出与备份功能；修复发行构建及更新配置。"
 }

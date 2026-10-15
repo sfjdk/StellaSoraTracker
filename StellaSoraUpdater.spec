@@ -1,9 +1,11 @@
 # -*- mode: python ; coding: utf-8 -*-
+from pathlib import Path
 
+project_root = Path(SPECPATH)
 
 a = Analysis(
-    ['C:/Users/sfjdk/Desktop/StellaSoraGachaTool/新建文件夹/stellasora_gacha_ui/launcher_updater.py'],
-    pathex=[],
+    [str(project_root / 'launcher_updater.py')],
+    pathex=[str(project_root)],
     binaries=[],
     datas=[],
     hiddenimports=[],
@@ -35,5 +37,5 @@ exe = EXE(
     target_arch=None,
     codesign_identity=None,
     entitlements_file=None,
-    icon=['C:/Users/sfjdk/Desktop/StellaSoraGachaTool/新建文件夹/stellasora_gacha_ui/assets/app_icon.ico'],
+    icon=[str(project_root / 'assets/app_icon.ico')],
 )

@@ -19,6 +19,14 @@ if ($LASTEXITCODE -ne 0) {
     throw "Build Python must provide Pillow and PyInstaller."
 }
 
+# Keep unrelated applications' DLLs out of PyInstaller's dependency search.
+$originalPath = $env:PATH
+$env:PATH = @(
+    (Split-Path -Parent $python),
+    (Join-Path $env:SystemRoot "System32"),
+    $env:SystemRoot
+) -join [IO.Path]::PathSeparator
+try {
 & $python -m PyInstaller --noconfirm --clean StellaSoraUpdater.spec
 if ($LASTEXITCODE -ne 0) { throw "Updater build failed." }
 
@@ -46,3 +54,6 @@ New-Item -ItemType Directory -Path $output -Force | Out-Null
 if ($LASTEXITCODE -ne 0) { throw "Application build failed for $target." }
 
 Copy-Item -LiteralPath "dist\StellaSoraUpdater.exe" -Destination "$output\StellaSoraGachaTool\StellaSoraUpdater.exe" -Force
+} finally {
+    $env:PATH = $originalPath
+}

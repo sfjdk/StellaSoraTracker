@@ -13,3 +13,4 @@ release/
 ui-beta/*.log
 sites/
 .testtmp/
+fortune.json

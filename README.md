@@ -1,5 +1,11 @@
 # 星塔旅人抽卡记录工具
 
+## 下载 Windows 版本
+
+在 [v1.2.26 发布页](https://github.com/sfjdk/StellaSoraTracker/releases/tag/v1.2.26) 下载 `StellaSoraGachaTool-1.2.26-win64.zip`，完整解压后运行 `StellaSoraGachaTool.exe`，无需安装 Python。升级前备份旧目录中的 `exports`，再将其复制到新版程序旁；不要只复制单个 exe。
+
+本次更新与校验说明见 [v1.2.26 更新日志](docs/releases/v1.2.26.md)。
+
 ## UI Beta 预览
 
 提供三套原生 PySide6 界面，首次默认使用星轨夜航，可在“数据与设置 → 界面主题”切换。程序会记住选择，下次启动自动恢复；切换时保留归档、卡池筛选、搜索条件和五星/全部记录浏览模式：

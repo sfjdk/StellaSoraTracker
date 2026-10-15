@@ -1,6 +1,9 @@
 import os
 
-os.environ["STELLASORA_UPDATE_SOURCE"] = "github"
+os.environ.setdefault(
+    "STELLASORA_UPDATE_MANIFEST_GITHUB",
+    "https://raw.githubusercontent.com/sfjdk/StellaSoraTracker/main/app_update_github.json",
+)
 
 from stellasora_toolkit.gui import main
 

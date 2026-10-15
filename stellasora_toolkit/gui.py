@@ -62,12 +62,40 @@ def _ensure_admin() -> bool:
         return True
 
 
+def _smoke_test() -> int:
+    """Render all bundled themes/pages without touching user archives or the network."""
+    import tempfile
+    from PySide6.QtGui import QPixmap
+    from PySide6.QtWidgets import QApplication
+    from .catalog_sync import asset_root
+    from .ui.window import StellaSoraApp
+
+    app = QApplication.instance() or QApplication([sys.argv[0]])
+    app.setStyle("Fusion")
+    if QPixmap(str(asset_root() / "app_icon.ico")).isNull():
+        raise RuntimeError("Bundled application icon could not be loaded")
+    with tempfile.TemporaryDirectory(prefix="stellasora-smoke-") as directory:
+        for variant in ("orbit", "sky", "journal"):
+            window = StellaSoraApp(Path(directory), variant=variant, demo=True, online_sync=False)
+            window.show()
+            for page in range(5):
+                window.navigate(page)
+                app.processEvents()
+                if window.grab().isNull() or window.stack.currentIndex() != page:
+                    raise RuntimeError(f"Could not render {variant} page {page}")
+            if window.refresh_button.text() != "抓取抽卡记录" or len(window.nav_buttons) != 5:
+                raise RuntimeError(f"Incomplete navigation in {variant}")
+            window.close()
+            window.deleteLater()
+            app.processEvents()
+    return 0
+
+
 def main(argv: list[str] | None = None) -> int:
     args = build_parser().parse_args(argv)
     _install_crash_log()
     if args.smoke_test:
-        from .ui import window, views, widgets, theme  # noqa: F401
-        return 0
+        return _smoke_test()
     if args.server:
         from . import server_config
         server_config.set_active(args.server)
