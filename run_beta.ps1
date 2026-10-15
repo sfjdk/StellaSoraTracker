@@ -1,5 +1,5 @@
 param(
-    [ValidateSet('orbit','sky','journal')][string]$Style = 'orbit',
+    [ValidateSet('orbit','sky','journal')][string]$Style,
     [switch]$Local
 )
 $ErrorActionPreference = 'Stop'
@@ -10,7 +10,8 @@ if (-not (Test-Path -LiteralPath $betaPython)) {
 }
 Push-Location $projectRoot
 try {
-    $betaArgs = @('-m','stellasora_toolkit.gui','--beta',$Style,'--output',(Join-Path $projectRoot 'exports'))
+    $betaArgs = @('-m','stellasora_toolkit.gui','--output',(Join-Path $projectRoot 'exports'))
+    if ($Style) { $betaArgs += @('--beta',$Style) }
     if (-not $Local) { $betaArgs += '--demo' }
     & $betaPython @betaArgs
     exit $LASTEXITCODE

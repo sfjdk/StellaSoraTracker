@@ -26,12 +26,15 @@ from .theme import set_palette, build_palette
 from .widgets import Card
 from .views import SettingsView, AccountView, HelpView, _style_combo_popup
 from .icons import icon
+from .preferences import load_theme, save_theme
 
 class StellaSoraApp(BusinessWindow):
     update_result = Signal(object)
     update_package = Signal(object)
-    def __init__(self,output: Path,*,variant='orbit',demo=False,dark=False,online_sync=True):
+    def __init__(self,output: Path,*,variant=None,demo=False,dark=False,online_sync=True):
         self.output = Path(output).resolve()
+        if variant is None:
+            variant = load_theme(self.output)
         self.variant,self.demo,self.online_sync = variant,demo,online_sync
         self.page,self.record_filter = 0,'all'
         self.record_query,self.record_all_pulls = '',False
@@ -95,7 +98,7 @@ class StellaSoraApp(BusinessWindow):
         col = QVBoxLayout(root); col.setContentsMargins(0,0,0,0); col.setSpacing(0)
         row = QHBoxLayout(); row.setSpacing(0)
         self.nav_buttons = []
-        if self.variant != 'sky': row.addWidget(self.sidebar())
+        row.addWidget(self.sidebar())
         body = QVBoxLayout(); body.setSpacing(0); body.addWidget(self.topbar())
         self.stack = QStackedWidget()
         self.home = HomeView(self.variant,self.open_records,self.demo)
@@ -133,7 +136,7 @@ class StellaSoraApp(BusinessWindow):
         p = palette(self.variant)
         card = Card(pad=22); card.setObjectName('ThemeSettings')
         card.add(label('界面主题',16,p.TEXT,True))
-        card.add(label('切换主题会保留当前账号、筛选条件和输入内容。',12,p.MUTED))
+        card.add(label('下次启动自动恢复所选主题；切换时保留当前账号、筛选条件和输入内容。',12,p.MUTED))
         row = QHBoxLayout(); group = QButtonGroup(card); group.setExclusive(True)
         self.theme_buttons = {}
         for key,name in VARIANTS.items():
@@ -150,7 +153,10 @@ class StellaSoraApp(BusinessWindow):
         self._settings._col.insertWidget(3,actions)
 
     def change_variant(self,variant):
-        if variant==self.variant: return
+        if variant not in VARIANTS: return
+        if variant==self.variant:
+            self._remember_theme()
+            return
         oldp,newp = palette(self.variant),palette(variant)
         colors = {getattr(oldp,key).lower():getattr(newp,key) for key in
                   ('BG','SURFACE','SURFACE2','PRIMARY','PRIMARY2','ON_PRIMARY','ACCENT','OK','WARN','DANGER','TEXT','MUTED','LINE')}
@@ -162,6 +168,13 @@ class StellaSoraApp(BusinessWindow):
         self.variant = variant
         self._mount_shell(); self.render()
         self.theme_buttons[variant].setChecked(True)
+        self._remember_theme()
+
+    def _remember_theme(self):
+        if save_theme(self.output,self.variant):
+            self.status(f'已选择 {VARIANTS[self.variant]}，下次启动自动恢复。')
+        else:
+            self.status('主题已切换，但保存失败，下次启动不会记住本次选择。')
 
     def status(self,text):
         self._status_text = text
@@ -366,10 +379,7 @@ class StellaSoraApp(BusinessWindow):
         bar = QFrame(); bar.setObjectName('Topbar')
         outer = QVBoxLayout(bar); outer.setContentsMargins(0,0,0,0); outer.setSpacing(0)
         row = QHBoxLayout(); row.setContentsMargins(24,16,24,16); row.setSpacing(12)
-        if self.variant == 'sky':
-            row.addWidget(self.brand())
-        else:
-            row.addWidget(label('招募记录工具',14,p.TEXT,True))
+        row.addWidget(label('招募记录工具',14,p.TEXT,True))
         row.addStretch()
         self.mode_button = button('演示 · 切换本地' if self.demo else '本地 · 预览演示',self.toggle_demo,'ghost')
         self.mode_button.setToolTip('演示数据仅用于 UI 预览；切换后可读取自己的本地归档。')
@@ -378,11 +388,6 @@ class StellaSoraApp(BusinessWindow):
         self.refresh_button.setIcon(icon('refresh',p.ON_PRIMARY))
         row.addWidget(self.refresh_button)
         outer.addLayout(row)
-        if self.variant == 'sky':
-            nav = QHBoxLayout(); nav.setContentsMargins(24,0,24,10); nav.setSpacing(12)
-            self.navigation(nav)
-            nav.addStretch()
-            outer.addLayout(nav)
         return bar
 
     def navigate(self,page):
@@ -405,6 +410,8 @@ StellaSoraWindow = StellaSoraApp
 def run(output: Path,*,dark=False,variant=None,demo=False):
     app = QApplication.instance() or QApplication(sys.argv)
     app.setStyle('Fusion')
-    window = StellaSoraApp(output,variant=variant or 'orbit',demo=demo)
+    if dark and variant is None:
+        variant = 'orbit'
+    window = StellaSoraApp(output,variant=variant,demo=demo)
     window.show()
     return app.exec()

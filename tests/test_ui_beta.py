@@ -11,6 +11,7 @@ from PySide6.QtWidgets import QApplication, QTableWidget, QPushButton
 from stellasora_toolkit.ui.window import StellaSoraApp
 from stellasora_toolkit.ui.beta_model import demo_snapshot, overview
 from stellasora_toolkit.service import ARCHIVE_FILENAME
+from stellasora_toolkit.ui.preferences import SETTINGS_FILENAME
 
 
 class BetaTests(unittest.TestCase):
@@ -18,7 +19,7 @@ class BetaTests(unittest.TestCase):
     def setUpClass(cls):
         cls.app = QApplication.instance() or QApplication([])
 
-    def test_demo_is_read_only_and_style_switch_preserves_records_and_page(self):
+    def test_demo_keeps_archives_read_only_and_style_switch_preserves_records_and_page(self):
         with tempfile.TemporaryDirectory() as tmp:
             root = Path(tmp)
             window = StellaSoraApp(root,variant='orbit',demo=True)
@@ -32,7 +33,7 @@ class BetaTests(unittest.TestCase):
                 self.assertEqual(window.records.current,'disc_limited')
             window.refresh()
             self.assertEqual(window.snapshot.gacha,original.gacha)
-            self.assertEqual(list(root.iterdir()),[])
+            self.assertEqual([p.name for p in root.iterdir()],[SETTINGS_FILENAME])
             window.close()
 
     def test_settings_theme_buttons_keep_settings_open_and_preserve_record_search(self):
